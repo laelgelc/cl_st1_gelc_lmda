@@ -1,1 +1,2 @@
-# cl_st1_gelc_lmda
+# Corpus Linguistics - Study 1 - GELC LMDA
+
