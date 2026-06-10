@@ -22,6 +22,12 @@ The v1 application should guide the user through:
 14. ANOVA by subcorpus/group;
 15. result inspection and export.
 
+Packaging and distribution requirements are specified separately in:
+
+```text
+docs/11_packaging_and_distribution.md
+```
+
 ## Development principles
 
 Development should follow these principles:
@@ -32,13 +38,14 @@ Development should follow these principles:
 - produce deterministic outputs;
 - save settings and run metadata for reproducibility;
 - validate statistical results against the reference workflow where possible;
-- keep v1 focused on the agreed scope.
+- keep v1 focused on the agreed scope;
+- consider executable packaging constraints early, especially PySide6, spaCy model handling, plotting, and statistical dependencies.
 
 ## Phase 1: Project foundation
 
 ### Goals
 
-Establish the project structure, dependency strategy, coding conventions, and test framework.
+Establish the project structure, dependency strategy, coding conventions, test framework, and initial packaging assumptions.
 
 ### Tasks
 
@@ -51,6 +58,10 @@ Establish the project structure, dependency strategy, coding conventions, and te
 - Define logging conventions.
 - Define run manifest format.
 - Create initial sample/test corpus fixtures.
+- Define the Python version for development and packaging.
+- Decide the initial packaging tool.
+- Decide the initial executable target platform.
+- Create or update the packaging specification.
 
 ### Deliverables
 
@@ -59,6 +70,7 @@ Establish the project structure, dependency strategy, coding conventions, and te
 - Project configuration format.
 - Logging and manifest design.
 - Minimal sample corpus for development.
+- Initial packaging decisions recorded in `docs/11_packaging_and_distribution.md`.
 
 ---
 
@@ -83,6 +95,7 @@ Create the desktop application shell and workflow navigation without implementin
   - complete;
   - failed;
   - stale.
+- Confirm that the application can be launched from a stable packaging entry point.
 
 ### Deliverables
 
@@ -91,6 +104,7 @@ Create the desktop application shell and workflow navigation without implementin
 - Navigation skeleton.
 - Log panel.
 - Workflow state display.
+- Stable application entry point suitable for packaging.
 
 ---
 
@@ -191,6 +205,7 @@ Process English texts with spaCy and store token-level data.
 - Connect processing to GUI background task.
 - Display progress in GUI.
 - Add NLP processing tests.
+- Confirm the spaCy model strategy for packaged builds.
 
 ### Deliverables
 
@@ -199,6 +214,7 @@ Process English texts with spaCy and store token-level data.
 - Processed corpus summary.
 - GUI progress integration.
 - NLP tests.
+- spaCy model packaging decision recorded in `docs/11_packaging_and_distribution.md`.
 
 ---
 
@@ -250,7 +266,7 @@ Identify key lemmas by comparing each subcorpus against all other subcorpora com
 
 - Key-lemma extraction module.
 - Key-lemma tables.
-- Key-lemma Extraction screen integration.
+- Key-Lemma Extraction screen integration.
 - Tests with controlled expected outputs.
 
 ---
@@ -358,6 +374,7 @@ Implement the internal statistical infrastructure required for LMDA.
 - Implement handling for all-zero row removal.
 - Implement numerical warning and error reporting.
 - Add tests for statistical preconditions.
+- Check whether selected statistical libraries are compatible with executable packaging.
 
 ### Deliverables
 
@@ -365,6 +382,7 @@ Implement the internal statistical infrastructure required for LMDA.
 - Statistical dependency decisions.
 - Input validation for statistical analysis.
 - Tests for statistical preconditions.
+- Packaging notes for statistical dependencies added to `docs/11_packaging_and_distribution.md`.
 
 ---
 
@@ -647,12 +665,14 @@ Allow users to export all or selected outputs.
 - Export processing log.
 - Implement overwrite confirmation.
 - Add export tests.
+- Confirm export formats required for the first packaged release.
 
 ### Deliverables
 
 - Export screen.
 - Export package/folder.
 - Export tests.
+- Confirmed v1 export format list.
 
 ---
 
@@ -731,16 +751,80 @@ Verify that the full application workflow works from project creation to export.
 - Test rerunning stages after setting changes.
 - Test error recovery.
 - Test export package completeness.
+- Run the workflow from the same entry point intended for executable packaging.
 
 ### Deliverables
 
 - End-to-end test report.
 - Resolved workflow-blocking issues.
 - Verified sample project.
+- Confirmation that the application entry point supports packaging.
 
 ---
 
-## Phase 27: Documentation and tutorials
+## Phase 27: Packaging and distribution preparation
+
+### Goals
+
+Prepare the application for executable packaging according to `docs/11_packaging_and_distribution.md`.
+
+### Tasks
+
+- Confirm target operating system for the first packaged build.
+- Confirm Python version.
+- Confirm packaging tool.
+- Confirm one-folder versus one-file packaging mode.
+- Confirm spaCy model packaging strategy.
+- Confirm application icon requirements.
+- Confirm resource bundling requirements.
+- Create packaging directory.
+- Create initial PyInstaller spec file or equivalent packaging configuration.
+- Create platform-specific build script for the first target platform.
+- Verify that the PySide6 application launches from the packaged build.
+- Verify that bundled resources are accessible.
+- Verify that logs and user projects are written outside the installation directory.
+
+### Deliverables
+
+- Packaging configuration.
+- First local executable build.
+- Build script for the first target platform.
+- Packaging smoke-test notes.
+
+---
+
+## Phase 28: Packaged application testing
+
+### Goals
+
+Test the packaged application outside the normal development environment.
+
+### Tasks
+
+- Run the packaged application on a clean machine or clean virtual environment.
+- Confirm that the GUI launches without command-line use.
+- Confirm that project creation works.
+- Confirm that corpus folder selection works.
+- Confirm that spaCy model loading works.
+- Confirm that corpus processing works.
+- Confirm that key-lemma extraction works.
+- Confirm that matrix generation works.
+- Confirm that initial factor analysis can run.
+- Confirm that scree plot display works.
+- Confirm that final analysis can run.
+- Confirm that exports are written correctly.
+- Confirm that logs are available.
+- Document missing dependencies or packaging failures.
+
+### Deliverables
+
+- Clean-machine packaged build test report.
+- List of packaging issues and fixes.
+- Updated packaging specification if required.
+
+---
+
+## Phase 29: Documentation and tutorials
 
 ### Goals
 
@@ -755,6 +839,7 @@ Provide user-facing documentation for v1.
 - Write explanation of key-lemma review and exclusions.
 - Write explanation of scree plot and factor-retention workflow.
 - Write explanation of exports.
+- Write packaged application installation notes.
 - Prepare sample project walkthrough.
 
 ### Deliverables
@@ -763,10 +848,11 @@ Provide user-facing documentation for v1.
 - Quick-start tutorial.
 - Sample corpus walkthrough.
 - Method notes.
+- Packaged application installation guide.
 
 ---
 
-## Phase 28: Packaging and distribution
+## Phase 30: Packaging and distribution release build
 
 ### Goals
 
@@ -774,24 +860,28 @@ Package the PySide6 desktop application for use by researchers.
 
 ### Tasks
 
-- Decide supported operating systems.
-- Package application.
+- Build the release executable for the first target platform.
 - Include or document spaCy model installation.
 - Test packaged application startup.
 - Test file dialogs and project writing.
 - Test large dependency packaging.
 - Test export paths.
-- Prepare release notes.
+- Prepare release archive or installer.
+- Include licence, citation, README, release notes, and known limitations.
+- Name release artefacts using the application version and platform.
+- If needed, prepare additional builds for other target platforms.
 
 ### Deliverables
 
 - Packaged v1 application.
+- Release archive or installer.
 - Installation instructions.
 - Release notes.
+- Known limitations document.
 
 ---
 
-## Phase 29: Version 1 release readiness
+## Phase 31: Version 1 release readiness
 
 ### Goals
 
@@ -821,6 +911,8 @@ Confirm that v1 meets its success criteria.
 - Run manifest is complete.
 - End-to-end tests pass.
 - Reference validation is documented.
+- Packaged application has passed clean-machine testing.
+- Packaging and distribution specification is up to date.
 - Known limitations are documented.
 
 ## Deferred post-v1 development
@@ -840,4 +932,8 @@ The following features are deferred beyond v1:
 - advanced visualisation dashboards;
 - built-in GPT interpretation generation;
 - automatic naming of factors or dimensions;
-- cloud or collaborative workflows.
+- cloud or collaborative workflows;
+- one-file executable mode, unless it proves reliable for v1;
+- signed installers;
+- automatic updates;
+- app-store or package-manager distribution.
