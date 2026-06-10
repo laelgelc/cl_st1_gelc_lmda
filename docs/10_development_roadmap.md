@@ -45,11 +45,12 @@ Development should follow these principles:
 
 ### Goals
 
-Establish the project structure, dependency strategy, coding conventions, test framework, and initial packaging assumptions.
+Establish the project structure, Python 3.12 environment, dependency strategy, coding conventions, test framework, and initial packaging assumptions.
 
 ### Tasks
 
 - Define package/module structure.
+- Set up Python 3.12 development environment.
 - Set up dependency management.
 - Set up test framework.
 - Set up formatting and linting tools.
@@ -58,7 +59,7 @@ Establish the project structure, dependency strategy, coding conventions, test f
 - Define logging conventions.
 - Define run manifest format.
 - Create initial sample/test corpus fixtures.
-- Define the Python version for development and packaging.
+- Record Python 3.12 as the v1 development and packaging version.
 - Decide the initial packaging tool.
 - Decide the initial executable target platform.
 - Create or update the packaging specification.

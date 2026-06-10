@@ -125,14 +125,15 @@ The dependency specification should include, at minimum:
 
 ## Python version
 
-The supported Python version for v1 packaging must be confirmed.
+The supported Python version for v1 packaging is:
 
-Recommended options:
+```text
+Python 3.12
+```
 
-- Python 3.11;
-- Python 3.12.
+Development, testing, and packaging should all use Python 3.12.
 
-The selected Python version should be used consistently across development, testing, and packaging.
+The selected Python version should be used consistently across local development, automated tests, and executable packaging.
 
 ## spaCy model strategy
 
