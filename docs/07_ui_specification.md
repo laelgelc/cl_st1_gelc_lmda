@@ -753,17 +753,17 @@ The following settings should have help text or tooltips:
 
 The GUI should show the following as fixed v1 settings rather than editable choices:
 
-| Setting | v1 value |
-|---|---|
-| Language | English |
-| NLP pipeline | spaCy |
-| Feature type | Lemma |
-| Multiword expressions | Not supported |
-| Data type | Categorical |
-| Feature values | Binary presence/absence |
-| Correlation method | Polychoric |
-| Extraction method | Principal factor |
-| Rotation method | Promax |
+| Setting               | v1 value                |
+|-----------------------|-------------------------|
+| Language              | English                 |
+| NLP pipeline          | spaCy                   |
+| Feature type          | Lemma                   |
+| Multiword expressions | Not supported           |
+| Data type             | Categorical             |
+| Feature values        | Binary presence/absence |
+| Correlation method    | Polychoric              |
+| Extraction method     | Principal factor        |
+| Rotation method       | Promax                  |
 
 ## Deferred UI features
 
