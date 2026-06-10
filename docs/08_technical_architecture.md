@@ -53,70 +53,98 @@ The architecture should follow these principles:
 
 ## Recommended high-level structure
 
-A recommended package structure is:
+The application should use a packaging-compatible `src/` layout.
+
+A recommended project and package structure is:
 
 ```text
-lmda_app/
-  app/
-    main.py
-    application.py
-  gui/
-    main_window.py
-    project_setup_view.py
-    corpus_import_view.py
-    nlp_settings_view.py
-    keylemma_view.py
-    candidate_review_view.py
-    keyword_selection_view.py
-    matrix_view.py
-    initial_analysis_view.py
-    factor_retention_view.py
-    final_analysis_view.py
-    results_view.py
-    export_view.py
-    workers.py
-    models.py
-  core/
-    project.py
-    workflow_state.py
-    settings.py
-    logging.py
-  corpus/
-    validation.py
-    readers.py
-    ids.py
-    processed_corpus.py
-  nlp/
-    spacy_pipeline.py
-    normalisation.py
-  features/
-    lemma_presence.py
-    keylemmas.py
-    exclusions.py
-    keyword_selection.py
-    matrix.py
-  statistics/
-    polychoric.py
-    factor_analysis.py
-    rotation.py
-    loadings.py
-    scoring.py
-    anova.py
-    validation.py
-  reports/
-    corpus_reports.py
-    keylemma_reports.py
-    matrix_reports.py
-    statistical_reports.py
-    examples.py
-    manifest.py
-  export/
-    writers.py
-    package.py
+project_root/
+  pyproject.toml
+  README.md
+  src/
+    lmda_app/
+      __init__.py
+      __main__.py
+      main.py
+      gui/
+        main_window.py
+        project_setup_view.py
+        corpus_import_view.py
+        nlp_settings_view.py
+        keylemma_view.py
+        candidate_review_view.py
+        keyword_selection_view.py
+        matrix_view.py
+        initial_analysis_view.py
+        factor_retention_view.py
+        final_analysis_view.py
+        results_view.py
+        export_view.py
+        workers.py
+        models.py
+      core/
+        project.py
+        workflow_state.py
+        settings.py
+        logging.py
+      corpus/
+        validation.py
+        readers.py
+        ids.py
+        processed_corpus.py
+      nlp/
+        spacy_pipeline.py
+        normalisation.py
+      features/
+        lemma_presence.py
+        keylemmas.py
+        exclusions.py
+        keyword_selection.py
+        matrix.py
+      statistics/
+        polychoric.py
+        factor_analysis.py
+        rotation.py
+        loadings.py
+        scoring.py
+        anova.py
+        validation.py
+      reports/
+        corpus_reports.py
+        keylemma_reports.py
+        matrix_reports.py
+        statistical_reports.py
+        examples.py
+        manifest.py
+      export/
+        writers.py
+        package.py
+  resources/
+    icons/
   tests/
+  packaging/
+    pyinstaller/
 ```
 
-This structure is illustrative rather than mandatory, but the implementation should preserve the same separation of responsibilities.
+The application package is located at:
+
+```text
+src/lmda_app/
+```
+
+The development entry point should support:
+
+```text
+python -m lmda_app
+```
+
+The packaging entry point should be:
+
+```text
+src/lmda_app/main.py
+```
+
+This structure is compatible with the packaging and distribution specification.
 
 ## GUI layer
 
