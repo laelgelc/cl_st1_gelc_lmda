@@ -71,6 +71,18 @@ class ApplicationState:
         self.settings = project.settings
         self.output_paths = {key: Path(value) for key, value in project.output_paths.items()}
 
+    def close_project(self) -> None:
+        """Clear the active project and reset project-specific state."""
+        self.project = None
+        self.project_name = None
+        self.project_directory = None
+        self.corpus_directory = None
+        self.settings = {}
+        self.output_paths = {}
+
+        for stage in self.workflow_stages:
+            stage.status = WorkflowStageStatus.NOT_STARTED
+
     def set_stage_status(self, stage_key: str, status: WorkflowStageStatus) -> None:
         """Set the status of a workflow stage."""
         for stage in self.workflow_stages:

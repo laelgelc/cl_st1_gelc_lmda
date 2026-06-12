@@ -69,6 +69,9 @@ class MainWindow(QMainWindow):
         save_project_action = file_menu.addAction("Save Project")
         save_project_action.triggered.connect(self._save_project)
 
+        close_project_action = file_menu.addAction("Close Project")
+        close_project_action.triggered.connect(self._close_project)
+
         file_menu.addSeparator()
 
         exit_action = file_menu.addAction("Exit")
@@ -314,6 +317,37 @@ class MainWindow(QMainWindow):
             return
 
         self.log_message(f"Saved project: {self.state.project.name}")
+
+    def _close_project(self) -> None:
+        """Close the active LMDA project."""
+        if self.state.project is None:
+            QMessageBox.information(
+                self,
+                "No project",
+                "There is no active project to close.",
+            )
+            return
+
+        project_name = self.state.project.name
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project close failed while saving: {exc}")
+            return
+
+        self.state.close_project()
+
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("project_setup")
+        self._update_window_title()
+
+        self.log_message(f"Closed project: {project_name}")
 
     def _update_window_title(self) -> None:
         """Update the main window title."""
