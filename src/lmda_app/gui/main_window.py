@@ -1,0 +1,252 @@
+from __future__ import annotations
+
+from datetime import datetime
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMainWindow,
+    QMenuBar,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QSplitter,
+    QStatusBar,
+    QVBoxLayout,
+    QWidget,
+)
+
+from lmda_app.core.application_state import ApplicationState, WorkflowStageStatus
+
+
+class MainWindow(QMainWindow):
+    """Main PySide6 window for the LMDA desktop application."""
+
+    def __init__(self, state: ApplicationState) -> None:
+        super().__init__()
+
+        self.state = state
+
+        self.workflow_list = QListWidget()
+        self.content_title = QLabel()
+        self.content_body = QLabel()
+        self.log_view = QPlainTextEdit()
+        self.status_label = QLabel("Ready")
+
+        self.setWindowTitle("LMDA Tool")
+        self.setMinimumSize(1100, 700)
+
+        self._create_menu_bar()
+        self._create_status_bar()
+        self._create_main_layout()
+        self._populate_workflow_navigation()
+
+        self._select_initial_stage()
+        self.log_message("Application started.")
+
+    def _create_menu_bar(self) -> None:
+        """Create the main menu bar."""
+        menu_bar = QMenuBar(self)
+        self.setMenuBar(menu_bar)
+
+        file_menu = menu_bar.addMenu("&File")
+
+        new_project_action = file_menu.addAction("New Project")
+        new_project_action.triggered.connect(self._show_not_implemented)
+
+        open_project_action = file_menu.addAction("Open Project")
+        open_project_action.triggered.connect(self._show_not_implemented)
+
+        save_project_action = file_menu.addAction("Save Project")
+        save_project_action.triggered.connect(self._show_not_implemented)
+
+        file_menu.addSeparator()
+
+        exit_action = file_menu.addAction("Exit")
+        exit_action.triggered.connect(self.close)
+
+        workflow_menu = menu_bar.addMenu("&Workflow")
+
+        validate_corpus_action = workflow_menu.addAction("Validate Corpus")
+        validate_corpus_action.triggered.connect(self._show_not_implemented)
+
+        process_corpus_action = workflow_menu.addAction("Process Corpus")
+        process_corpus_action.triggered.connect(self._show_not_implemented)
+
+        extract_keylemmas_action = workflow_menu.addAction("Extract Key Lemmas")
+        extract_keylemmas_action.triggered.connect(self._show_not_implemented)
+
+        run_initial_analysis_action = workflow_menu.addAction("Run Initial Analysis")
+        run_initial_analysis_action.triggered.connect(self._show_not_implemented)
+
+        run_final_analysis_action = workflow_menu.addAction("Run Final Analysis")
+        run_final_analysis_action.triggered.connect(self._show_not_implemented)
+
+        help_menu = menu_bar.addMenu("&Help")
+
+        about_action = help_menu.addAction("About")
+        about_action.triggered.connect(self._show_about_dialog)
+
+    def _create_status_bar(self) -> None:
+        """Create the status bar."""
+        status_bar = QStatusBar(self)
+        status_bar.addWidget(self.status_label)
+        self.setStatusBar(status_bar)
+
+    def _create_main_layout(self) -> None:
+        """Create the main window layout."""
+        root = QWidget()
+        root_layout = QVBoxLayout(root)
+
+        main_splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        self.workflow_list.setMinimumWidth(220)
+        self.workflow_list.currentRowChanged.connect(self._on_workflow_stage_changed)
+        main_splitter.addWidget(self.workflow_list)
+
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+
+        self.content_title.setStyleSheet("font-size: 22px; font-weight: bold;")
+        self.content_body.setWordWrap(True)
+        self.content_body.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        action_row = QHBoxLayout()
+        primary_action = QPushButton("Primary action")
+        primary_action.clicked.connect(self._show_not_implemented)
+
+        secondary_action = QPushButton("Secondary action")
+        secondary_action.clicked.connect(self._show_not_implemented)
+
+        action_row.addWidget(primary_action)
+        action_row.addWidget(secondary_action)
+        action_row.addStretch()
+
+        content_layout.addWidget(self.content_title)
+        content_layout.addWidget(self.content_body, stretch=1)
+        content_layout.addLayout(action_row)
+
+        main_splitter.addWidget(content_widget)
+        main_splitter.setStretchFactor(0, 0)
+        main_splitter.setStretchFactor(1, 1)
+
+        self.log_view.setReadOnly(True)
+        self.log_view.setMaximumBlockCount(2000)
+        self.log_view.setPlaceholderText("Processing log")
+
+        root_layout.addWidget(main_splitter, stretch=4)
+        root_layout.addWidget(QLabel("Processing log"))
+        root_layout.addWidget(self.log_view, stretch=1)
+
+        self.setCentralWidget(root)
+
+    def _populate_workflow_navigation(self) -> None:
+        """Populate the workflow navigation list."""
+        self.workflow_list.clear()
+
+        for stage in self.state.workflow_stages:
+            item = QListWidgetItem(self._format_stage_label(stage.label, stage.status))
+            item.setData(Qt.ItemDataRole.UserRole, stage.key)
+            self.workflow_list.addItem(item)
+
+    def _select_initial_stage(self) -> None:
+        """Select the first workflow stage."""
+        if self.workflow_list.count() > 0:
+            self.workflow_list.setCurrentRow(0)
+
+    def _on_workflow_stage_changed(self, row: int) -> None:
+        """Update the central content when the selected workflow stage changes."""
+        if row < 0:
+            return
+
+        item = self.workflow_list.item(row)
+        stage_key = item.data(Qt.ItemDataRole.UserRole)
+        stage = self.state.get_stage(stage_key)
+
+        self.content_title.setText(stage.label)
+        self.content_body.setText(self._placeholder_text_for_stage(stage.key))
+        self.status_label.setText(f"Current stage: {stage.label}")
+
+    def _placeholder_text_for_stage(self, stage_key: str) -> str:
+        """Return placeholder content for a workflow stage."""
+        placeholder_texts = {
+            "project_setup": (
+                "Create or open an LMDA project.\n\n"
+                "This screen will later allow the user to set the project name and output folder."
+            ),
+            "corpus_import": (
+                "Select and validate the input corpus folder.\n\n"
+                "The corpus must contain immediate subfolders representing subcorpora."
+            ),
+            "nlp_settings": (
+                "Configure NLP and POS settings.\n\n"
+                "Version 1 uses English and spaCy. The user will select eligible POS tags."
+            ),
+            "keylemmas": (
+                "Run key-lemma extraction by comparing each subcorpus against all others."
+            ),
+            "candidate_review": (
+                "Review candidate key lemmas and define stopwords or other excluded lemmas."
+            ),
+            "keyword_selection": (
+                "Select the final stratified keyword list using per-subcorpus quotas."
+            ),
+            "matrix": (
+                "Build and inspect the binary text-by-keyword matrix."
+            ),
+            "initial_analysis": (
+                "Run initial factor analysis and display eigenvalues, scree plot, and communalities."
+            ),
+            "factor_retention": (
+                "Review the scree plot and select the number of factors to extract."
+            ),
+            "final_analysis": (
+                "Run final factor extraction, promax rotation, factor scoring, and ANOVA."
+            ),
+            "results": (
+                "Inspect factor loadings, scores, group means, ANOVA results, and high-scoring texts."
+            ),
+            "export": (
+                "Export outputs, reports, run manifest, and processing log."
+            ),
+        }
+
+        return placeholder_texts.get(stage_key, "This workflow stage is not yet implemented.")
+
+    def log_message(self, message: str) -> None:
+        """Append a message to the processing log."""
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.log_view.appendPlainText(f"[{timestamp}] {message}")
+
+    def _show_not_implemented(self) -> None:
+        """Show a placeholder message for unimplemented actions."""
+        self.log_message("User selected an action that is not implemented yet.")
+        QMessageBox.information(
+            self,
+            "Not implemented",
+            "This action is not implemented yet.",
+        )
+
+    def _show_about_dialog(self) -> None:
+        """Show the About dialog."""
+        QMessageBox.about(
+            self,
+            "About LMDA Tool",
+            "LMDA Tool\n\n"
+            "Desktop application for Lexical Multidimensional Analysis.\n\n"
+            "Version: 0.1.0",
+        )
+
+    @staticmethod
+    def _format_stage_label(label: str, status: WorkflowStageStatus) -> str:
+        """Format a workflow stage label with status."""
+        status_labels = {
+            WorkflowStageStatus.NOT_STARTED: "○",
+            WorkflowStageStatus.COMPLETE: "✓",
+            WorkflowStageStatus.FAILED: "!",
+            WorkflowStageStatus.STALE: "↻",
+        }
+        return f"{status_labels[status]} {label}"

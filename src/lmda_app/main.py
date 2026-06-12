@@ -2,28 +2,18 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtWidgets import QApplication, QLabel, QMainWindow
+from PySide6.QtWidgets import QApplication
 
-
-class MainWindow(QMainWindow):
-    """Initial application shell for the LMDA desktop app."""
-
-    def __init__(self) -> None:
-        super().__init__()
-
-        self.setWindowTitle("LMDA Tool")
-        self.setMinimumSize(900, 600)
-
-        label = QLabel("LMDA Tool - application shell")
-        label.setStyleSheet("font-size: 18px; padding: 24px;")
-        self.setCentralWidget(label)
+from lmda_app.core.application_state import ApplicationState
+from lmda_app.gui.main_window import MainWindow
 
 
 def main() -> int:
     """Run the LMDA desktop application."""
     app = QApplication(sys.argv)
 
-    window = MainWindow()
+    state = ApplicationState.create_default()
+    window = MainWindow(state)
     window.show()
 
     return app.exec()
