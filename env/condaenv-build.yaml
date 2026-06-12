@@ -1,0 +1,44 @@
+name: cl_st1_gelc_lmda_build
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12.13
+  - pip
+
+  # GUI
+  - pyside6
+
+  # NLP
+  - spacy
+  - spacy-model-en_core_web_sm
+
+  # Data
+  - numpy
+  - pandas
+  - pyarrow
+  - openpyxl
+
+  # Statistics
+  - scipy
+  - scikit-learn
+  - statsmodels
+
+  # Plotting
+  - matplotlib
+  - seaborn
+
+  # Runtime utilities
+  - tqdm
+  - natsort
+  - python-dotenv
+  - platformdirs
+  - requests
+  - validators
+
+  # Packaging
+  - pyinstaller
+
+  # Pip packages
+  - pip:
+      - factor-analyzer
