@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from lmda_app.corpus.ids import generate_text_id_mapping, write_text_id_mapping
 from lmda_app.corpus.validation import CorpusValidationResult
 from lmda_app.core.application_state import ApplicationState, WorkflowStageStatus
 from lmda_app.core.project import LmdaProject
@@ -386,9 +387,9 @@ class MainWindow(QMainWindow):
         self.log_message(f"Closed project: {project_name}")
 
     def _on_corpus_validated(
-        self,
-        corpus_path: Path,
-        validation_result: CorpusValidationResult,
+            self,
+            corpus_path: Path,
+            validation_result: CorpusValidationResult,
     ) -> None:
         """Handle successful corpus validation."""
         if self.state.project is None:
@@ -399,25 +400,36 @@ class MainWindow(QMainWindow):
             )
             return
 
+        if validation_result.inventory is None:
+            QMessageBox.warning(
+                self,
+                "Missing inventory",
+                "Corpus validation did not return an inventory.",
+            )
+            return
+
+        text_id_records = generate_text_id_mapping(validation_result.inventory)
+        text_id_mapping_path = self.state.project.directory / "processed" / "text_id_mapping.tsv"
+
+        try:
+            write_text_id_mapping(text_id_records, text_id_mapping_path)
+        except OSError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not write text ID mapping",
+                str(exc),
+            )
+            self.log_message(f"Could not write text ID mapping: {exc}")
+            return
+
         self.state.corpus_directory = corpus_path
         self.state.project.corpus_directory = corpus_path
+        self.state.project.output_paths["text_id_mapping"] = str(text_id_mapping_path)
         self.state.project.settings["corpus_validation"] = {
-            "subcorpus_count": (
-                validation_result.inventory.subcorpus_count
-                if validation_result.inventory is not None
-                else 0
-            ),
-            "text_count": (
-                validation_result.inventory.text_count if validation_result.inventory is not None else 0
-            ),
-            "empty_count": (
-                validation_result.inventory.empty_count if validation_result.inventory is not None else 0
-            ),
-            "unreadable_count": (
-                validation_result.inventory.unreadable_count
-                if validation_result.inventory is not None
-                else 0
-            ),
+            "subcorpus_count": validation_result.inventory.subcorpus_count,
+            "text_count": validation_result.inventory.text_count,
+            "empty_count": validation_result.inventory.empty_count,
+            "unreadable_count": validation_result.inventory.unreadable_count,
             "warnings": validation_result.warnings,
         }
 
@@ -438,13 +450,12 @@ class MainWindow(QMainWindow):
         self._select_stage_by_key("corpus_import")
 
         self.log_message(f"Validated corpus folder: {corpus_path}")
-
-        if validation_result.inventory is not None:
-            self.log_message(
-                "Corpus summary: "
-                f"{validation_result.inventory.subcorpus_count} subcorpora, "
-                f"{validation_result.inventory.text_count} text files."
-            )
+        self.log_message(
+            "Corpus summary: "
+            f"{validation_result.inventory.subcorpus_count} subcorpora, "
+            f"{validation_result.inventory.text_count} text files."
+        )
+        self.log_message(f"Text ID mapping written to: {text_id_mapping_path}")
 
     def _update_window_title(self) -> None:
         """Update the main window title."""
