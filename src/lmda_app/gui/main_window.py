@@ -17,14 +17,17 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QSplitter,
+    QStackedWidget,
     QStatusBar,
     QVBoxLayout,
     QWidget,
 )
 
+from lmda_app.corpus.validation import CorpusValidationResult
 from lmda_app.core.application_state import ApplicationState, WorkflowStageStatus
 from lmda_app.core.project import LmdaProject
 from lmda_app.core.project_io import ProjectIOError, load_project, save_project
+from lmda_app.gui.corpus_import_widget import CorpusImportWidget
 from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
 
 
@@ -37,8 +40,9 @@ class MainWindow(QMainWindow):
         self.state = state
 
         self.workflow_list = QListWidget()
-        self.content_title = QLabel()
-        self.content_body = QLabel()
+        self.content_stack = QStackedWidget()
+        self.placeholder_widget = self._create_placeholder_widget()
+        self.corpus_import_widget = CorpusImportWidget()
         self.log_view = QPlainTextEdit()
         self.status_label = QLabel("Ready")
 
@@ -49,6 +53,7 @@ class MainWindow(QMainWindow):
         self._create_status_bar()
         self._create_main_layout()
         self._populate_workflow_navigation()
+        self._connect_widget_signals()
 
         self._select_initial_stage()
         self.log_message("Application started.")
@@ -80,7 +85,7 @@ class MainWindow(QMainWindow):
         workflow_menu = menu_bar.addMenu("&Workflow")
 
         validate_corpus_action = workflow_menu.addAction("Validate Corpus")
-        validate_corpus_action.triggered.connect(self._show_not_implemented)
+        validate_corpus_action.triggered.connect(self._select_corpus_import_stage)
 
         process_corpus_action = workflow_menu.addAction("Process Corpus")
         process_corpus_action.triggered.connect(self._show_not_implemented)
@@ -116,8 +121,34 @@ class MainWindow(QMainWindow):
         self.workflow_list.currentRowChanged.connect(self._on_workflow_stage_changed)
         main_splitter.addWidget(self.workflow_list)
 
-        content_widget = QWidget()
-        content_layout = QVBoxLayout(content_widget)
+        self.content_stack.addWidget(self.placeholder_widget)
+        self.content_stack.addWidget(self.corpus_import_widget)
+
+        main_splitter.addWidget(self.content_stack)
+        main_splitter.setStretchFactor(0, 0)
+        main_splitter.setStretchFactor(1, 1)
+
+        self.log_view.setReadOnly(True)
+        self.log_view.setMaximumBlockCount(2000)
+        self.log_view.setPlaceholderText("Processing log")
+
+        root_layout.addWidget(main_splitter, stretch=4)
+        root_layout.addWidget(QLabel("Processing log"))
+        root_layout.addWidget(self.log_view, stretch=1)
+
+        self.setCentralWidget(root)
+
+    def _connect_widget_signals(self) -> None:
+        """Connect child widget signals."""
+        self.corpus_import_widget.corpus_validated.connect(self._on_corpus_validated)
+
+    def _create_placeholder_widget(self) -> QWidget:
+        """Create the placeholder content widget."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        self.content_title = QLabel()
+        self.content_body = QLabel()
 
         self.content_title.setStyleSheet("font-size: 22px; font-weight: bold;")
         self.content_body.setWordWrap(True)
@@ -135,23 +166,11 @@ class MainWindow(QMainWindow):
         action_row.addWidget(secondary_action)
         action_row.addStretch()
 
-        content_layout.addWidget(self.content_title)
-        content_layout.addWidget(self.content_body, stretch=1)
-        content_layout.addLayout(action_row)
+        layout.addWidget(self.content_title)
+        layout.addWidget(self.content_body, stretch=1)
+        layout.addLayout(action_row)
 
-        main_splitter.addWidget(content_widget)
-        main_splitter.setStretchFactor(0, 0)
-        main_splitter.setStretchFactor(1, 1)
-
-        self.log_view.setReadOnly(True)
-        self.log_view.setMaximumBlockCount(2000)
-        self.log_view.setPlaceholderText("Processing log")
-
-        root_layout.addWidget(main_splitter, stretch=4)
-        root_layout.addWidget(QLabel("Processing log"))
-        root_layout.addWidget(self.log_view, stretch=1)
-
-        self.setCentralWidget(root)
+        return widget
 
     def _populate_workflow_navigation(self) -> None:
         """Populate the workflow navigation list."""
@@ -176,6 +195,10 @@ class MainWindow(QMainWindow):
                 self.workflow_list.setCurrentRow(row)
                 return
 
+    def _select_corpus_import_stage(self) -> None:
+        """Select the Corpus Import workflow stage."""
+        self._select_stage_by_key("corpus_import")
+
     def _on_workflow_stage_changed(self, row: int) -> None:
         """Update the central content when the selected workflow stage changes."""
         if row < 0:
@@ -185,9 +208,16 @@ class MainWindow(QMainWindow):
         stage_key = item.data(Qt.ItemDataRole.UserRole)
         stage = self.state.get_stage(stage_key)
 
+        self.status_label.setText(f"Current stage: {stage.label}")
+
+        if stage.key == "corpus_import":
+            self.content_stack.setCurrentWidget(self.corpus_import_widget)
+            self.corpus_import_widget.set_corpus_path(self.state.corpus_directory)
+            return
+
+        self.content_stack.setCurrentWidget(self.placeholder_widget)
         self.content_title.setText(stage.label)
         self.content_body.setText(self._placeholder_text_for_stage(stage.key))
-        self.status_label.setText(f"Current stage: {stage.label}")
 
     def _placeholder_text_for_stage(self, stage_key: str) -> str:
         """Return placeholder content for a workflow stage."""
@@ -288,12 +318,18 @@ class MainWindow(QMainWindow):
         self.state.set_project(project)
         self.state.set_stage_status("project_setup", WorkflowStageStatus.COMPLETE)
 
+        if self.state.corpus_directory is not None:
+            self.state.set_stage_status("corpus_import", WorkflowStageStatus.COMPLETE)
+
         self._populate_workflow_navigation()
         self._select_stage_by_key("project_setup")
         self._update_window_title()
 
         self.log_message(f"Opened project: {project.name}")
         self.log_message(f"Project folder: {project.directory}")
+
+        if project.corpus_directory is not None:
+            self.log_message(f"Corpus folder: {project.corpus_directory}")
 
     def _save_project(self) -> None:
         """Save the active LMDA project."""
@@ -348,6 +384,67 @@ class MainWindow(QMainWindow):
         self._update_window_title()
 
         self.log_message(f"Closed project: {project_name}")
+
+    def _on_corpus_validated(
+            self,
+            corpus_path: Path,
+            validation_result: CorpusValidationResult,
+    ) -> None:
+        """Handle successful corpus validation."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before assigning a corpus folder.",
+            )
+            return
+
+        self.state.corpus_directory = corpus_path
+        self.state.project.corpus_directory = corpus_path
+        self.state.project.settings["corpus_validation"] = {
+            "subcorpus_count": (
+                validation_result.inventory.subcorpus_count
+                if validation_result.inventory is not None
+                else 0
+            ),
+            "text_count": (
+                validation_result.inventory.text_count if validation_result.inventory is not None else 0
+            ),
+            "empty_count": (
+                validation_result.inventory.empty_count if validation_result.inventory is not None else 0
+            ),
+            "unreadable_count": (
+                validation_result.inventory.unreadable_count
+                if validation_result.inventory is not None
+                else 0
+            ),
+            "warnings": validation_result.warnings,
+        }
+
+        self.state.set_stage_status("corpus_import", WorkflowStageStatus.COMPLETE)
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after corpus validation: {exc}")
+            return
+
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("corpus_import")
+
+        self.log_message(f"Validated corpus folder: {corpus_path}")
+
+        if validation_result.inventory is not None:
+            self.log_message(
+                "Corpus summary: "
+                f"{validation_result.inventory.subcorpus_count} subcorpora, "
+                f"{validation_result.inventory.text_count} text files."
+            )
 
     def _update_window_title(self) -> None:
         """Update the main window title."""
