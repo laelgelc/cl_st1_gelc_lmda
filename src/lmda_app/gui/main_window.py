@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QDialog,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QListWidget,
@@ -20,6 +23,9 @@ from PySide6.QtWidgets import (
 )
 
 from lmda_app.core.application_state import ApplicationState, WorkflowStageStatus
+from lmda_app.core.project import LmdaProject
+from lmda_app.core.project_io import ProjectIOError, load_project, save_project
+from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
 
 
 class MainWindow(QMainWindow):
@@ -55,13 +61,13 @@ class MainWindow(QMainWindow):
         file_menu = menu_bar.addMenu("&File")
 
         new_project_action = file_menu.addAction("New Project")
-        new_project_action.triggered.connect(self._show_not_implemented)
+        new_project_action.triggered.connect(self._create_new_project)
 
         open_project_action = file_menu.addAction("Open Project")
-        open_project_action.triggered.connect(self._show_not_implemented)
+        open_project_action.triggered.connect(self._open_project)
 
         save_project_action = file_menu.addAction("Save Project")
-        save_project_action.triggered.connect(self._show_not_implemented)
+        save_project_action.triggered.connect(self._save_project)
 
         file_menu.addSeparator()
 
@@ -115,6 +121,7 @@ class MainWindow(QMainWindow):
         self.content_body.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         action_row = QHBoxLayout()
+
         primary_action = QPushButton("Primary action")
         primary_action.clicked.connect(self._show_not_implemented)
 
@@ -157,6 +164,15 @@ class MainWindow(QMainWindow):
         if self.workflow_list.count() > 0:
             self.workflow_list.setCurrentRow(0)
 
+    def _select_stage_by_key(self, stage_key: str) -> None:
+        """Select a workflow stage in the navigation list."""
+        for row in range(self.workflow_list.count()):
+            item = self.workflow_list.item(row)
+
+            if item.data(Qt.ItemDataRole.UserRole) == stage_key:
+                self.workflow_list.setCurrentRow(row)
+                return
+
     def _on_workflow_stage_changed(self, row: int) -> None:
         """Update the central content when the selected workflow stage changes."""
         if row < 0:
@@ -185,18 +201,14 @@ class MainWindow(QMainWindow):
                 "Configure NLP and POS settings.\n\n"
                 "Version 1 uses English and spaCy. The user will select eligible POS tags."
             ),
-            "keylemmas": (
-                "Run key-lemma extraction by comparing each subcorpus against all others."
-            ),
+            "keylemmas": "Run key-lemma extraction by comparing each subcorpus against all others.",
             "candidate_review": (
                 "Review candidate key lemmas and define stopwords or other excluded lemmas."
             ),
             "keyword_selection": (
                 "Select the final stratified keyword list using per-subcorpus quotas."
             ),
-            "matrix": (
-                "Build and inspect the binary text-by-keyword matrix."
-            ),
+            "matrix": "Build and inspect the binary text-by-keyword matrix.",
             "initial_analysis": (
                 "Run initial factor analysis and display eigenvalues, scree plot, and communalities."
             ),
@@ -209,12 +221,107 @@ class MainWindow(QMainWindow):
             "results": (
                 "Inspect factor loadings, scores, group means, ANOVA results, and high-scoring texts."
             ),
-            "export": (
-                "Export outputs, reports, run manifest, and processing log."
-            ),
+            "export": "Export outputs, reports, run manifest, and processing log.",
         }
 
         return placeholder_texts.get(stage_key, "This workflow stage is not yet implemented.")
+
+    def _create_new_project(self) -> None:
+        """Create a new LMDA project."""
+        dialog = ProjectSetupDialog(self)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        project = LmdaProject.create(
+            name=dialog.project_name,
+            directory=dialog.project_directory,
+        )
+
+        try:
+            save_project(project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not create project",
+                str(exc),
+            )
+            self.log_message(f"Project creation failed: {exc}")
+            return
+
+        self.state.set_project(project)
+        self.state.set_stage_status("project_setup", WorkflowStageStatus.COMPLETE)
+
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("project_setup")
+        self._update_window_title()
+
+        self.log_message(f"Created project: {project.name}")
+        self.log_message(f"Project folder: {project.directory}")
+
+    def _open_project(self) -> None:
+        """Open an existing LMDA project."""
+        selected_file, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open LMDA project",
+            "",
+            "LMDA project files (project.json);;JSON files (*.json);;All files (*)",
+        )
+
+        if not selected_file:
+            return
+
+        try:
+            project = load_project(Path(selected_file))
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not open project",
+                str(exc),
+            )
+            self.log_message(f"Project open failed: {exc}")
+            return
+
+        self.state.set_project(project)
+        self.state.set_stage_status("project_setup", WorkflowStageStatus.COMPLETE)
+
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("project_setup")
+        self._update_window_title()
+
+        self.log_message(f"Opened project: {project.name}")
+        self.log_message(f"Project folder: {project.directory}")
+
+    def _save_project(self) -> None:
+        """Save the active LMDA project."""
+        if self.state.project is None:
+            QMessageBox.information(
+                self,
+                "No project",
+                "There is no active project to save.",
+            )
+            return
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed: {exc}")
+            return
+
+        self.log_message(f"Saved project: {self.state.project.name}")
+
+    def _update_window_title(self) -> None:
+        """Update the main window title."""
+        if self.state.project is None:
+            self.setWindowTitle("LMDA Tool")
+            return
+
+        self.setWindowTitle(f"LMDA Tool - {self.state.project.name}")
 
     def log_message(self, message: str) -> None:
         """Append a message to the processing log."""

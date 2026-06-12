@@ -5,6 +5,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from lmda_app.core.project import LmdaProject
+
 
 class WorkflowStageStatus(str, Enum):
     """Status values for workflow stages."""
@@ -28,10 +30,11 @@ class WorkflowStage:
 class ApplicationState:
     """In-memory state for the LMDA application shell.
 
-    This object will later be responsible for tracking project settings,
-    workflow progress, output paths, and stale downstream stages.
+    This object tracks project settings, workflow progress, output paths,
+    and stale downstream stages.
     """
 
+    project: LmdaProject | None = None
     project_name: str | None = None
     project_directory: Path | None = None
     corpus_directory: Path | None = None
@@ -58,6 +61,15 @@ class ApplicationState:
                 WorkflowStage("export", "Export"),
             ]
         )
+
+    def set_project(self, project: LmdaProject) -> None:
+        """Set the active project."""
+        self.project = project
+        self.project_name = project.name
+        self.project_directory = project.directory
+        self.corpus_directory = project.corpus_directory
+        self.settings = project.settings
+        self.output_paths = {key: Path(value) for key, value in project.output_paths.items()}
 
     def set_stage_status(self, stage_key: str, status: WorkflowStageStatus) -> None:
         """Set the status of a workflow stage."""
