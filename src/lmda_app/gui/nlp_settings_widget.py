@@ -4,9 +4,11 @@ from pathlib import Path
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
+    QApplication,
     QGroupBox,
     QLabel,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QTextEdit,
     QVBoxLayout,
@@ -36,6 +38,10 @@ class NlpSettingsWidget(QWidget):
         self.summary_text = QTextEdit()
         self.summary_text.setReadOnly(True)
 
+        self.process_button = QPushButton("Process Corpus")
+        self.progress_bar = QProgressBar()
+        self.progress_label = QLabel("Ready")
+
         self._create_layout()
 
     def _create_layout(self) -> None:
@@ -56,8 +62,11 @@ class NlpSettingsWidget(QWidget):
         )
         fixed_settings.setWordWrap(True)
 
-        run_button = QPushButton("Process Corpus")
-        run_button.clicked.connect(self._process_corpus)
+        self.process_button.clicked.connect(self._process_corpus)
+
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(True)
 
         summary_group = QGroupBox("Processing summary")
         summary_layout = QVBoxLayout(summary_group)
@@ -65,7 +74,9 @@ class NlpSettingsWidget(QWidget):
 
         root_layout.addWidget(intro)
         root_layout.addWidget(fixed_settings)
-        root_layout.addWidget(run_button)
+        root_layout.addWidget(self.process_button)
+        root_layout.addWidget(self.progress_label)
+        root_layout.addWidget(self.progress_bar)
         root_layout.addWidget(summary_group, stretch=1)
 
     def set_project_context(
@@ -107,6 +118,8 @@ class NlpSettingsWidget(QWidget):
 
         output_path = self.project_directory / "processed" / "processed_tokens.tsv"
 
+        self._set_processing_ui(is_processing=True)
+
         try:
             tokens, summary = process_corpus_from_text_id_mapping(
                 text_id_mapping_path=self.text_id_mapping_path,
@@ -114,6 +127,7 @@ class NlpSettingsWidget(QWidget):
             )
             write_processed_tokens(tokens, output_path)
         except SpacyPipelineError as exc:
+            self._set_processing_ui(is_processing=False)
             QMessageBox.critical(
                 self,
                 "spaCy processing failed",
@@ -121,6 +135,7 @@ class NlpSettingsWidget(QWidget):
             )
             return
         except OSError as exc:
+            self._set_processing_ui(is_processing=False)
             QMessageBox.critical(
                 self,
                 "Could not write processed tokens",
@@ -128,8 +143,24 @@ class NlpSettingsWidget(QWidget):
             )
             return
 
+        self._set_processing_ui(is_processing=False)
         self._display_summary(summary, output_path)
         self.corpus_processed.emit(output_path, summary)
+
+    def _set_processing_ui(self, is_processing: bool) -> None:
+        """Update the UI while processing is running."""
+        self.process_button.setDisabled(is_processing)
+
+        if is_processing:
+            self.progress_label.setText("Processing corpus with spaCy...")
+            self.progress_bar.setRange(0, 0)
+            QApplication.processEvents()
+            return
+
+        self.progress_label.setText("Processing complete")
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(100)
+        QApplication.processEvents()
 
     def _display_summary(self, summary: ProcessingSummary, output_path: Path) -> None:
         """Display NLP processing summary."""
