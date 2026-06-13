@@ -15,15 +15,15 @@ def create_project_directory(project_directory: Path) -> None:
     project_directory.mkdir(parents=True, exist_ok=True)
 
     for child in (
-            "logs",
-            "processed",
-            "keylemmas",
-            "review",
-            "keywords",
-            "matrix",
-            "statistics",
-            "reports",
-            "exports",
+        "logs",
+        "processed",
+        "keylemmas",
+        "review",
+        "keywords",
+        "matrix",
+        "statistics",
+        "reports",
+        "exports",
     ):
         (project_directory / child).mkdir(exist_ok=True)
 
