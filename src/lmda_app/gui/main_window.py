@@ -31,8 +31,10 @@ from lmda_app.core.project_io import ProjectIOError, load_project, save_project
 from lmda_app.gui.corpus_import_widget import CorpusImportWidget
 from lmda_app.gui.nlp_settings_widget import NlpSettingsWidget
 from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
-from lmda_app.features.lemma_presence import LemmaPresenceSummary
 from lmda_app.nlp.processed_tokens import ProcessingSummary
+from lmda_app.features.lemma_presence import LemmaPresenceSummary
+from lmda_app.features.keylemmas import KeyLemmaSummary
+from lmda_app.gui.keylemma_widget import KeyLemmaWidget
 
 
 class MainWindow(QMainWindow):
@@ -48,6 +50,7 @@ class MainWindow(QMainWindow):
         self.placeholder_widget = self._create_placeholder_widget()
         self.corpus_import_widget = CorpusImportWidget()
         self.nlp_settings_widget = NlpSettingsWidget()
+        self.keylemma_widget = KeyLemmaWidget()
         self.log_view = QPlainTextEdit()
         self.status_label = QLabel("Ready")
 
@@ -96,7 +99,7 @@ class MainWindow(QMainWindow):
         process_corpus_action.triggered.connect(self._select_nlp_settings_stage)
 
         extract_keylemmas_action = workflow_menu.addAction("Extract Key Lemmas")
-        extract_keylemmas_action.triggered.connect(self._show_not_implemented)
+        extract_keylemmas_action.triggered.connect(self._select_keylemmas_stage)
 
         run_initial_analysis_action = workflow_menu.addAction("Run Initial Analysis")
         run_initial_analysis_action.triggered.connect(self._show_not_implemented)
@@ -129,6 +132,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.placeholder_widget)
         self.content_stack.addWidget(self.corpus_import_widget)
         self.content_stack.addWidget(self.nlp_settings_widget)
+        self.content_stack.addWidget(self.keylemma_widget)
 
         main_splitter.addWidget(self.content_stack)
         main_splitter.setStretchFactor(0, 0)
@@ -149,6 +153,7 @@ class MainWindow(QMainWindow):
         self.corpus_import_widget.corpus_validated.connect(self._on_corpus_validated)
         self.nlp_settings_widget.corpus_processed.connect(self._on_corpus_processed)
         self.nlp_settings_widget.lemma_presence_created.connect(self._on_lemma_presence_created)
+        self.keylemma_widget.keylemmas_extracted.connect(self._on_keylemmas_extracted)
 
     def _create_placeholder_widget(self) -> QWidget:
         """Create the placeholder content widget."""
