@@ -28,14 +28,16 @@ from lmda_app.corpus.validation import CorpusValidationResult
 from lmda_app.core.application_state import ApplicationState, WorkflowStageStatus
 from lmda_app.core.project import LmdaProject
 from lmda_app.core.project_io import ProjectIOError, load_project, save_project
+from lmda_app.features.binary_matrix import BinaryMatrixSummary
 from lmda_app.features.candidate_review import CandidateReviewSummary
 from lmda_app.features.keylemmas import KeyLemmaSummary
-from lmda_app.features.lemma_presence import LemmaPresenceSummary
 from lmda_app.features.keyword_selection import KeywordSelectionSummary
+from lmda_app.features.lemma_presence import LemmaPresenceSummary
 from lmda_app.gui.candidate_review_widget import CandidateReviewWidget
 from lmda_app.gui.corpus_import_widget import CorpusImportWidget
 from lmda_app.gui.keylemma_widget import KeyLemmaWidget
 from lmda_app.gui.keyword_selection_widget import KeywordSelectionWidget
+from lmda_app.gui.matrix_widget import MatrixWidget
 from lmda_app.gui.nlp_settings_widget import NlpSettingsWidget
 from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
 from lmda_app.nlp.processed_tokens import ProcessingSummary
@@ -57,6 +59,7 @@ class MainWindow(QMainWindow):
         self.keylemma_widget = KeyLemmaWidget()
         self.candidate_review_widget = CandidateReviewWidget()
         self.keyword_selection_widget = KeywordSelectionWidget()
+        self.matrix_widget = MatrixWidget()
         self.log_view = QPlainTextEdit()
         self.status_label = QLabel("Ready")
 
@@ -113,6 +116,9 @@ class MainWindow(QMainWindow):
         keyword_selection_action = workflow_menu.addAction("Select Keywords")
         keyword_selection_action.triggered.connect(self._select_keyword_selection_stage)
 
+        build_matrix_action = workflow_menu.addAction("Build Matrix")
+        build_matrix_action.triggered.connect(self._select_matrix_stage)
+
         run_initial_analysis_action = workflow_menu.addAction("Run Initial Analysis")
         run_initial_analysis_action.triggered.connect(self._show_not_implemented)
 
@@ -147,6 +153,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.keylemma_widget)
         self.content_stack.addWidget(self.candidate_review_widget)
         self.content_stack.addWidget(self.keyword_selection_widget)
+        self.content_stack.addWidget(self.matrix_widget)
 
         main_splitter.addWidget(self.content_stack)
         main_splitter.setStretchFactor(0, 0)
@@ -174,6 +181,7 @@ class MainWindow(QMainWindow):
         self.keyword_selection_widget.keyword_selection_completed.connect(
             self._on_keyword_selection_completed
         )
+        self.matrix_widget.binary_matrix_created.connect(self._on_binary_matrix_created)
 
     def _create_placeholder_widget(self) -> QWidget:
         """Create the placeholder content widget."""
@@ -248,6 +256,10 @@ class MainWindow(QMainWindow):
         """Select the Keyword Selection workflow stage."""
         self._select_stage_by_key("keyword_selection")
 
+    def _select_matrix_stage(self) -> None:
+        """Select the Matrix workflow stage."""
+        self._select_stage_by_key("matrix")
+
     def _on_workflow_stage_changed(self, row: int) -> None:
         """Update the central content when the selected workflow stage changes."""
         if row < 0:
@@ -296,6 +308,16 @@ class MainWindow(QMainWindow):
                 project_directory=self.state.project_directory,
                 keylemmas_directory=self._get_keylemmas_path(),
                 excluded_lemmas_path=self._get_excluded_lemmas_path(),
+            )
+            return
+
+        if stage.key == "matrix":
+            self.content_stack.setCurrentWidget(self.matrix_widget)
+            self.matrix_widget.set_project_context(
+                project_directory=self.state.project_directory,
+                text_id_mapping_path=self._get_text_id_mapping_path(),
+                lemma_presence_path=self._get_lemma_presence_path(),
+                final_keywords_path=self._get_final_keywords_path(),
             )
             return
 
@@ -416,6 +438,9 @@ class MainWindow(QMainWindow):
 
         if self._get_final_keywords_path() is not None:
             self.state.set_stage_status("keyword_selection", WorkflowStageStatus.COMPLETE)
+
+        if self._get_binary_matrix_path() is not None:
+            self.state.set_stage_status("matrix", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
         self._select_stage_by_key("project_setup")
@@ -781,6 +806,52 @@ class MainWindow(QMainWindow):
             f"{summary.duplicates_removed} duplicates removed."
         )
 
+    def _on_binary_matrix_created(self, summary: BinaryMatrixSummary) -> None:
+        """Handle successful binary matrix generation."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before building the matrix.",
+            )
+            return
+
+        self.state.project.output_paths["binary_matrix"] = str(summary.matrix_output_path)
+        self.state.project.output_paths["keyword_id_mapping"] = str(
+            summary.keyword_id_mapping_path
+        )
+        self.state.project.output_paths["all_zero_rows"] = str(summary.all_zero_rows_path)
+        self.state.project.settings["binary_matrix"] = {
+            "text_count": summary.text_count,
+            "keyword_count": summary.keyword_count,
+            "non_zero_row_count": summary.non_zero_row_count,
+            "all_zero_row_count": summary.all_zero_row_count,
+        }
+
+        self.state.set_stage_status("matrix", WorkflowStageStatus.COMPLETE)
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after matrix generation: {exc}")
+            return
+
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("matrix")
+
+        self.log_message(f"Binary matrix written to: {summary.matrix_output_path}")
+        self.log_message(
+            "Binary matrix summary: "
+            f"{summary.text_count} texts, "
+            f"{summary.keyword_count} keywords, "
+            f"{summary.all_zero_row_count} all-zero rows."
+        )
+
     def _get_text_id_mapping_path(self) -> Path | None:
         """Return the text ID mapping path from the active project."""
         if self.state.project is None:
@@ -864,6 +935,19 @@ class MainWindow(QMainWindow):
             return None
 
         value = self.state.project.output_paths.get("final_keywords")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_binary_matrix_path(self) -> Path | None:
+        """Return the binary matrix path from the active project if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("binary_matrix")
 
         if value is None:
             return None
