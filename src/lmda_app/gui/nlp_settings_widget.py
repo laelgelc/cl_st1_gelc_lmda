@@ -5,6 +5,7 @@ from pathlib import Path
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QGroupBox,
     QLabel,
     QMessageBox,
@@ -15,6 +16,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from lmda_app.features.lemma_presence import (
+    DEFAULT_ELIGIBLE_POS,
+    LemmaPresenceSummary,
+    build_lemma_presence_from_processed_tokens,
+    write_lemma_presence,
+)
 from lmda_app.nlp.processed_tokens import ProcessingSummary, write_processed_tokens
 from lmda_app.nlp.spacy_pipeline import (
     DEFAULT_SPACY_MODEL,
@@ -24,9 +31,30 @@ from lmda_app.nlp.spacy_pipeline import (
 
 
 class NlpSettingsWidget(QWidget):
-    """Widget for running the v1 spaCy NLP processing step."""
+    """Widget for running the v1 spaCy NLP processing and POS filtering steps."""
 
     corpus_processed = Signal(Path, ProcessingSummary)
+    lemma_presence_created = Signal(Path, LemmaPresenceSummary)
+
+    AVAILABLE_POS = (
+        "ADJ",
+        "ADP",
+        "ADV",
+        "AUX",
+        "CCONJ",
+        "DET",
+        "INTJ",
+        "NOUN",
+        "NUM",
+        "PART",
+        "PRON",
+        "PROPN",
+        "PUNCT",
+        "SCONJ",
+        "SYM",
+        "VERB",
+        "X",
+    )
 
     def __init__(self, parent=None) -> None:  # noqa: ANN001
         super().__init__(parent)
@@ -34,13 +62,17 @@ class NlpSettingsWidget(QWidget):
         self.project_directory: Path | None = None
         self.corpus_directory: Path | None = None
         self.text_id_mapping_path: Path | None = None
+        self.processed_tokens_path: Path | None = None
 
         self.summary_text = QTextEdit()
         self.summary_text.setReadOnly(True)
 
         self.process_button = QPushButton("Process Corpus")
+        self.lemma_presence_button = QPushButton("Build Lemma Presence")
         self.progress_bar = QProgressBar()
         self.progress_label = QLabel("Ready")
+
+        self.pos_checkboxes: dict[str, QCheckBox] = {}
 
         self._create_layout()
 
@@ -62,7 +94,17 @@ class NlpSettingsWidget(QWidget):
         )
         fixed_settings.setWordWrap(True)
 
+        pos_group = QGroupBox("Eligible POS tags")
+        pos_layout = QVBoxLayout(pos_group)
+
+        for pos in self.AVAILABLE_POS:
+            checkbox = QCheckBox(pos)
+            checkbox.setChecked(pos in DEFAULT_ELIGIBLE_POS)
+            self.pos_checkboxes[pos] = checkbox
+            pos_layout.addWidget(checkbox)
+
         self.process_button.clicked.connect(self._process_corpus)
+        self.lemma_presence_button.clicked.connect(self._build_lemma_presence)
 
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
@@ -74,7 +116,9 @@ class NlpSettingsWidget(QWidget):
 
         root_layout.addWidget(intro)
         root_layout.addWidget(fixed_settings)
+        root_layout.addWidget(pos_group)
         root_layout.addWidget(self.process_button)
+        root_layout.addWidget(self.lemma_presence_button)
         root_layout.addWidget(self.progress_label)
         root_layout.addWidget(self.progress_bar)
         root_layout.addWidget(summary_group, stretch=1)
@@ -84,11 +128,21 @@ class NlpSettingsWidget(QWidget):
             project_directory: Path | None,
             corpus_directory: Path | None,
             text_id_mapping_path: Path | None,
+            processed_tokens_path: Path | None = None,
     ) -> None:
         """Set the project context required for NLP processing."""
         self.project_directory = project_directory
         self.corpus_directory = corpus_directory
         self.text_id_mapping_path = text_id_mapping_path
+        self.processed_tokens_path = processed_tokens_path
+
+    def selected_pos(self) -> set[str]:
+        """Return selected POS tags."""
+        return {
+            pos
+            for pos, checkbox in self.pos_checkboxes.items()
+            if checkbox.isChecked()
+        }
 
     def _process_corpus(self) -> None:
         """Run spaCy processing for the validated corpus."""
@@ -118,7 +172,7 @@ class NlpSettingsWidget(QWidget):
 
         output_path = self.project_directory / "processed" / "processed_tokens.tsv"
 
-        self._set_processing_ui(is_processing=True)
+        self._set_processing_ui("Processing corpus with spaCy...", is_processing=True)
 
         try:
             tokens, summary = process_corpus_from_text_id_mapping(
@@ -127,7 +181,7 @@ class NlpSettingsWidget(QWidget):
             )
             write_processed_tokens(tokens, output_path)
         except SpacyPipelineError as exc:
-            self._set_processing_ui(is_processing=False)
+            self._set_processing_ui("Processing failed", is_processing=False, complete=False)
             QMessageBox.critical(
                 self,
                 "spaCy processing failed",
@@ -135,7 +189,7 @@ class NlpSettingsWidget(QWidget):
             )
             return
         except OSError as exc:
-            self._set_processing_ui(is_processing=False)
+            self._set_processing_ui("Processing failed", is_processing=False, complete=False)
             QMessageBox.critical(
                 self,
                 "Could not write processed tokens",
@@ -143,28 +197,93 @@ class NlpSettingsWidget(QWidget):
             )
             return
 
-        self._set_processing_ui(is_processing=False)
-        self._display_summary(summary, output_path)
+        self.processed_tokens_path = output_path
+        self._set_processing_ui("Processing complete", is_processing=False)
+        self._display_processing_summary(summary, output_path)
         self.corpus_processed.emit(output_path, summary)
 
-    def _set_processing_ui(self, is_processing: bool) -> None:
+    def _build_lemma_presence(self) -> None:
+        """Build text-level lemma presence from processed token data."""
+        if self.project_directory is None:
+            QMessageBox.warning(
+                self,
+                "No project",
+                "Create or open a project before building lemma presence.",
+            )
+            return
+
+        if self.processed_tokens_path is None or not self.processed_tokens_path.exists():
+            QMessageBox.warning(
+                self,
+                "Missing processed tokens",
+                "Process the corpus before building lemma presence.",
+            )
+            return
+
+        selected_pos = self.selected_pos()
+
+        if not selected_pos:
+            QMessageBox.warning(
+                self,
+                "No POS tags selected",
+                "Select at least one POS tag.",
+            )
+            return
+
+        output_path = self.project_directory / "processed" / "lemma_presence.tsv"
+
+        self._set_processing_ui("Building lemma presence...", is_processing=True)
+
+        try:
+            records, summary = build_lemma_presence_from_processed_tokens(
+                processed_tokens_path=self.processed_tokens_path,
+                selected_pos=selected_pos,
+            )
+            write_lemma_presence(records, output_path)
+        except OSError as exc:
+            self._set_processing_ui("Lemma presence failed", is_processing=False, complete=False)
+            QMessageBox.critical(
+                self,
+                "Could not write lemma presence",
+                str(exc),
+            )
+            return
+
+        self._set_processing_ui("Lemma presence complete", is_processing=False)
+        self._display_lemma_presence_summary(summary, output_path)
+        self.lemma_presence_created.emit(output_path, summary)
+
+    def _set_processing_ui(
+            self,
+            message: str,
+            *,
+            is_processing: bool,
+            complete: bool = True,
+    ) -> None:
         """Update the UI while processing is running."""
         self.process_button.setDisabled(is_processing)
+        self.lemma_presence_button.setDisabled(is_processing)
+
+        self.progress_label.setText(message)
 
         if is_processing:
-            self.progress_label.setText("Processing corpus with spaCy...")
             self.progress_bar.setRange(0, 0)
             QApplication.processEvents()
             return
 
-        self.progress_label.setText("Processing complete")
         self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(100)
+        self.progress_bar.setValue(100 if complete else 0)
         QApplication.processEvents()
 
-    def _display_summary(self, summary: ProcessingSummary, output_path: Path) -> None:
+    def _display_processing_summary(
+            self,
+            summary: ProcessingSummary,
+            output_path: Path,
+    ) -> None:
         """Display NLP processing summary."""
         lines = [
+            "NLP processing complete",
+            "",
             f"Processed texts: {summary.processed_texts}",
             f"Skipped texts: {summary.skipped_texts}",
             f"Processed tokens: {summary.processed_tokens}",
@@ -176,5 +295,25 @@ class NlpSettingsWidget(QWidget):
         if summary.warning_list():
             lines.append("Warnings:")
             lines.extend(f"- {warning}" for warning in summary.warning_list())
+
+        self.summary_text.setPlainText("\n".join(lines))
+
+    def _display_lemma_presence_summary(
+            self,
+            summary: LemmaPresenceSummary,
+            output_path: Path,
+    ) -> None:
+        """Display lemma presence summary."""
+        lines = [
+            "Lemma presence complete",
+            "",
+            f"Selected POS tags: {', '.join(summary.selected_pos)}",
+            f"Input token count: {summary.input_token_count}",
+            f"Eligible token count: {summary.eligible_token_count}",
+            f"Presence records: {summary.presence_record_count}",
+            f"Unique lemmas: {summary.unique_lemma_count}",
+            f"Texts with eligible lemmas: {summary.text_count}",
+            f"Output: {output_path}",
+        ]
 
         self.summary_text.setPlainText("\n".join(lines))

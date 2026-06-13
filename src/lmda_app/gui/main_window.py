@@ -31,6 +31,7 @@ from lmda_app.core.project_io import ProjectIOError, load_project, save_project
 from lmda_app.gui.corpus_import_widget import CorpusImportWidget
 from lmda_app.gui.nlp_settings_widget import NlpSettingsWidget
 from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
+from lmda_app.features.lemma_presence import LemmaPresenceSummary
 from lmda_app.nlp.processed_tokens import ProcessingSummary
 
 
@@ -147,6 +148,7 @@ class MainWindow(QMainWindow):
         """Connect child widget signals."""
         self.corpus_import_widget.corpus_validated.connect(self._on_corpus_validated)
         self.nlp_settings_widget.corpus_processed.connect(self._on_corpus_processed)
+        self.nlp_settings_widget.lemma_presence_created.connect(self._on_lemma_presence_created)
 
     def _create_placeholder_widget(self) -> QWidget:
         """Create the placeholder content widget."""
@@ -231,6 +233,7 @@ class MainWindow(QMainWindow):
                 project_directory=self.state.project_directory,
                 corpus_directory=self.state.corpus_directory,
                 text_id_mapping_path=self._get_text_id_mapping_path(),
+                processed_tokens_path=self._get_processed_tokens_path(),
             )
             return
 
@@ -525,6 +528,48 @@ class MainWindow(QMainWindow):
             f"{summary.retained_tokens} retained tokens."
         )
 
+    def _on_lemma_presence_created(
+            self,
+            lemma_presence_path: Path,
+            summary: LemmaPresenceSummary,
+    ) -> None:
+        """Handle successful lemma presence generation."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before building lemma presence.",
+            )
+            return
+
+        self.state.project.output_paths["lemma_presence"] = str(lemma_presence_path)
+        self.state.project.settings["lemma_presence"] = {
+            "selected_pos": list(summary.selected_pos),
+            "input_token_count": summary.input_token_count,
+            "eligible_token_count": summary.eligible_token_count,
+            "presence_record_count": summary.presence_record_count,
+            "unique_lemma_count": summary.unique_lemma_count,
+            "text_count": summary.text_count,
+        }
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after lemma presence generation: {exc}")
+            return
+
+        self.log_message(f"Lemma presence written to: {lemma_presence_path}")
+        self.log_message(
+            "Lemma presence summary: "
+            f"{summary.presence_record_count} presence records, "
+            f"{summary.unique_lemma_count} unique lemmas."
+        )
+
     def _get_text_id_mapping_path(self) -> Path | None:
         """Return the text ID mapping path from the active project."""
         if self.state.project is None:
@@ -543,6 +588,19 @@ class MainWindow(QMainWindow):
             return None
 
         value = self.state.project.output_paths.get("processed_tokens")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_lemma_presence_path(self) -> Path | None:
+        """Return the lemma presence path from the active project if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("lemma_presence")
 
         if value is None:
             return None
