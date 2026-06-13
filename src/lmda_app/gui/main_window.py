@@ -408,9 +408,9 @@ class MainWindow(QMainWindow):
         self.log_message(f"Closed project: {project_name}")
 
     def _on_corpus_validated(
-            self,
-            corpus_path: Path,
-            validation_result: CorpusValidationResult,
+        self,
+        corpus_path: Path,
+        validation_result: CorpusValidationResult,
     ) -> None:
         """Handle successful corpus validation."""
         if self.state.project is None:
@@ -479,9 +479,9 @@ class MainWindow(QMainWindow):
         self.log_message(f"Text ID mapping written to: {text_id_mapping_path}")
 
     def _on_corpus_processed(
-            self,
-            processed_tokens_path: Path,
-            summary: ProcessingSummary,
+        self,
+        processed_tokens_path: Path,
+        summary: ProcessingSummary,
     ) -> None:
         """Handle successful NLP processing."""
         if self.state.project is None:
