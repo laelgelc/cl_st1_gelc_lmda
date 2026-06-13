@@ -28,13 +28,13 @@ from lmda_app.corpus.validation import CorpusValidationResult
 from lmda_app.core.application_state import ApplicationState, WorkflowStageStatus
 from lmda_app.core.project import LmdaProject
 from lmda_app.core.project_io import ProjectIOError, load_project, save_project
+from lmda_app.features.keylemmas import KeyLemmaSummary
+from lmda_app.features.lemma_presence import LemmaPresenceSummary
 from lmda_app.gui.corpus_import_widget import CorpusImportWidget
+from lmda_app.gui.keylemma_widget import KeyLemmaWidget
 from lmda_app.gui.nlp_settings_widget import NlpSettingsWidget
 from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
 from lmda_app.nlp.processed_tokens import ProcessingSummary
-from lmda_app.features.lemma_presence import LemmaPresenceSummary
-from lmda_app.features.keylemmas import KeyLemmaSummary
-from lmda_app.gui.keylemma_widget import KeyLemmaWidget
 
 
 class MainWindow(QMainWindow):
@@ -216,6 +216,10 @@ class MainWindow(QMainWindow):
         """Select the NLP Settings workflow stage."""
         self._select_stage_by_key("nlp_settings")
 
+    def _select_keylemmas_stage(self) -> None:
+        """Select the Key Lemmas workflow stage."""
+        self._select_stage_by_key("keylemmas")
+
     def _on_workflow_stage_changed(self, row: int) -> None:
         """Update the central content when the selected workflow stage changes."""
         if row < 0:
@@ -239,6 +243,14 @@ class MainWindow(QMainWindow):
                 corpus_directory=self.state.corpus_directory,
                 text_id_mapping_path=self._get_text_id_mapping_path(),
                 processed_tokens_path=self._get_processed_tokens_path(),
+            )
+            return
+
+        if stage.key == "keylemmas":
+            self.content_stack.setCurrentWidget(self.keylemma_widget)
+            self.keylemma_widget.set_project_context(
+                project_directory=self.state.project_directory,
+                lemma_presence_path=self._get_lemma_presence_path(),
             )
             return
 
@@ -350,6 +362,9 @@ class MainWindow(QMainWindow):
 
         if self._get_processed_tokens_path() is not None:
             self.state.set_stage_status("nlp_settings", WorkflowStageStatus.COMPLETE)
+
+        if self._get_keylemmas_path() is not None:
+            self.state.set_stage_status("keylemmas", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
         self._select_stage_by_key("project_setup")
@@ -575,6 +590,53 @@ class MainWindow(QMainWindow):
             f"{summary.unique_lemma_count} unique lemmas."
         )
 
+    def _on_keylemmas_extracted(
+            self,
+            output_directory: Path,
+            summary: KeyLemmaSummary,
+    ) -> None:
+        """Handle successful key-lemma extraction."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before extracting key lemmas.",
+            )
+            return
+
+        self.state.project.output_paths["keylemmas"] = str(output_directory)
+        self.state.project.settings["keylemmas"] = {
+            "subcorpus_count": summary.subcorpus_count,
+            "total_rows": summary.total_rows,
+            "positive_count": summary.positive_count,
+            "negative_count": summary.negative_count,
+            "not_keyword_count": summary.not_keyword_count,
+        }
+
+        self.state.set_stage_status("keylemmas", WorkflowStageStatus.COMPLETE)
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after key-lemma extraction: {exc}")
+            return
+
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("keylemmas")
+
+        self.log_message(f"Key-lemma tables written to: {output_directory}")
+        self.log_message(
+            "Key-lemma summary: "
+            f"{summary.positive_count} POSKW, "
+            f"{summary.negative_count} NEGKW, "
+            f"{summary.not_keyword_count} NOTKW."
+        )
+
     def _get_text_id_mapping_path(self) -> Path | None:
         """Return the text ID mapping path from the active project."""
         if self.state.project is None:
@@ -606,6 +668,19 @@ class MainWindow(QMainWindow):
             return None
 
         value = self.state.project.output_paths.get("lemma_presence")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_keylemmas_path(self) -> Path | None:
+        """Return the key-lemma output directory from the active project if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("keylemmas")
 
         if value is None:
             return None
