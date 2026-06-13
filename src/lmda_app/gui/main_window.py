@@ -35,12 +35,14 @@ from lmda_app.features.keyword_selection import KeywordSelectionSummary
 from lmda_app.features.lemma_presence import LemmaPresenceSummary
 from lmda_app.gui.candidate_review_widget import CandidateReviewWidget
 from lmda_app.gui.corpus_import_widget import CorpusImportWidget
+from lmda_app.gui.initial_analysis_widget import InitialAnalysisWidget
 from lmda_app.gui.keylemma_widget import KeyLemmaWidget
 from lmda_app.gui.keyword_selection_widget import KeywordSelectionWidget
 from lmda_app.gui.matrix_widget import MatrixWidget
 from lmda_app.gui.nlp_settings_widget import NlpSettingsWidget
 from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
 from lmda_app.nlp.processed_tokens import ProcessingSummary
+from lmda_app.statistics.matrix_input import StatisticalInputSummary
 
 
 class MainWindow(QMainWindow):
@@ -60,6 +62,7 @@ class MainWindow(QMainWindow):
         self.candidate_review_widget = CandidateReviewWidget()
         self.keyword_selection_widget = KeywordSelectionWidget()
         self.matrix_widget = MatrixWidget()
+        self.initial_analysis_widget = InitialAnalysisWidget()
         self.log_view = QPlainTextEdit()
         self.status_label = QLabel("Ready")
 
@@ -120,7 +123,7 @@ class MainWindow(QMainWindow):
         build_matrix_action.triggered.connect(self._select_matrix_stage)
 
         run_initial_analysis_action = workflow_menu.addAction("Run Initial Analysis")
-        run_initial_analysis_action.triggered.connect(self._show_not_implemented)
+        run_initial_analysis_action.triggered.connect(self._select_initial_analysis_stage)
 
         run_final_analysis_action = workflow_menu.addAction("Run Final Analysis")
         run_final_analysis_action.triggered.connect(self._show_not_implemented)
@@ -154,6 +157,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.candidate_review_widget)
         self.content_stack.addWidget(self.keyword_selection_widget)
         self.content_stack.addWidget(self.matrix_widget)
+        self.content_stack.addWidget(self.initial_analysis_widget)
 
         main_splitter.addWidget(self.content_stack)
         main_splitter.setStretchFactor(0, 0)
@@ -182,6 +186,9 @@ class MainWindow(QMainWindow):
             self._on_keyword_selection_completed
         )
         self.matrix_widget.binary_matrix_created.connect(self._on_binary_matrix_created)
+        self.initial_analysis_widget.statistical_input_prepared.connect(
+            self._on_statistical_input_prepared
+        )
 
     def _create_placeholder_widget(self) -> QWidget:
         """Create the placeholder content widget."""
@@ -260,6 +267,10 @@ class MainWindow(QMainWindow):
         """Select the Matrix workflow stage."""
         self._select_stage_by_key("matrix")
 
+    def _select_initial_analysis_stage(self) -> None:
+        """Select the Initial Analysis workflow stage."""
+        self._select_stage_by_key("initial_analysis")
+
     def _on_workflow_stage_changed(self, row: int) -> None:
         """Update the central content when the selected workflow stage changes."""
         if row < 0:
@@ -321,6 +332,14 @@ class MainWindow(QMainWindow):
             )
             return
 
+        if stage.key == "initial_analysis":
+            self.content_stack.setCurrentWidget(self.initial_analysis_widget)
+            self.initial_analysis_widget.set_project_context(
+                project_directory=self.state.project_directory,
+                binary_matrix_path=self._get_binary_matrix_path(),
+            )
+            return
+
         self.content_stack.setCurrentWidget(self.placeholder_widget)
         self.content_title.setText(stage.label)
         self.content_body.setText(self._placeholder_text_for_stage(stage.key))
@@ -349,7 +368,8 @@ class MainWindow(QMainWindow):
             ),
             "matrix": "Build and inspect the binary text-by-keyword matrix.",
             "initial_analysis": (
-                "Run initial factor analysis and display eigenvalues, scree plot, and communalities."
+                "Prepare statistical input by removing all-zero rows before correlation "
+                "and factor analysis."
             ),
             "factor_retention": (
                 "Review the scree plot and select the number of factors to extract."
@@ -441,6 +461,9 @@ class MainWindow(QMainWindow):
 
         if self._get_binary_matrix_path() is not None:
             self.state.set_stage_status("matrix", WorkflowStageStatus.COMPLETE)
+
+        if self._get_statistical_matrix_path() is not None:
+            self.state.set_stage_status("initial_analysis", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
         self._select_stage_by_key("project_setup")
@@ -852,6 +875,56 @@ class MainWindow(QMainWindow):
             f"{summary.all_zero_row_count} all-zero rows."
         )
 
+    def _on_statistical_input_prepared(self, summary: StatisticalInputSummary) -> None:
+        """Handle successful statistical input preparation."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before preparing statistical input.",
+            )
+            return
+
+        self.state.project.output_paths["statistical_matrix"] = str(
+            summary.statistical_matrix_path
+        )
+        self.state.project.output_paths["statistical_matrix_metadata"] = str(
+            summary.metadata_output_path
+        )
+        self.state.project.output_paths["all_zero_rows_for_statistics"] = str(
+            summary.all_zero_rows_path
+        )
+        self.state.project.settings["statistical_input"] = {
+            "total_text_count": summary.total_text_count,
+            "retained_text_count": summary.retained_text_count,
+            "removed_all_zero_count": summary.removed_all_zero_count,
+            "keyword_count": summary.keyword_count,
+        }
+
+        self.state.set_stage_status("initial_analysis", WorkflowStageStatus.COMPLETE)
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after statistical input preparation: {exc}")
+            return
+
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("initial_analysis")
+
+        self.log_message(f"Statistical matrix written to: {summary.statistical_matrix_path}")
+        self.log_message(
+            "Statistical input summary: "
+            f"{summary.retained_text_count} retained texts, "
+            f"{summary.removed_all_zero_count} removed all-zero texts, "
+            f"{summary.keyword_count} keywords."
+        )
+
     def _get_text_id_mapping_path(self) -> Path | None:
         """Return the text ID mapping path from the active project."""
         if self.state.project is None:
@@ -948,6 +1021,19 @@ class MainWindow(QMainWindow):
             return None
 
         value = self.state.project.output_paths.get("binary_matrix")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_statistical_matrix_path(self) -> Path | None:
+        """Return the statistical matrix path from the active project if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("statistical_matrix")
 
         if value is None:
             return None
