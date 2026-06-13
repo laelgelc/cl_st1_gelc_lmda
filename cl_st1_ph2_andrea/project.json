@@ -2,7 +2,7 @@
   "name": "cl_st1_ph2_andrea",
   "directory": "cl_st1_ph2_andrea",
   "created_at": "2026-06-12T19:24:06",
-  "updated_at": "2026-06-12T21:51:38",
+  "updated_at": "2026-06-13T09:38:21",
   "corpus_directory": "/home/eyamrog/PycharmProjects/cl_st1_andrea/cl_st1_ph2_andrea/corpus/commercial_verbal",
   "settings": {
     "corpus_validation": {
@@ -31,11 +31,19 @@
       "presence_record_count": 23918,
       "unique_lemma_count": 5557,
       "text_count": 824
+    },
+    "keylemmas": {
+      "subcorpus_count": 8,
+      "total_rows": 1203,
+      "positive_count": 302,
+      "negative_count": 31,
+      "not_keyword_count": 870
     }
   },
   "output_paths": {
     "text_id_mapping": "cl_st1_ph2_andrea/processed/text_id_mapping.tsv",
     "processed_tokens": "cl_st1_ph2_andrea/processed/processed_tokens.tsv",
-    "lemma_presence": "cl_st1_ph2_andrea/processed/lemma_presence.tsv"
+    "lemma_presence": "cl_st1_ph2_andrea/processed/lemma_presence.tsv",
+    "keylemmas": "cl_st1_ph2_andrea/keylemmas"
   }
 }
