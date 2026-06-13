@@ -29,7 +29,9 @@ from lmda_app.core.application_state import ApplicationState, WorkflowStageStatu
 from lmda_app.core.project import LmdaProject
 from lmda_app.core.project_io import ProjectIOError, load_project, save_project
 from lmda_app.gui.corpus_import_widget import CorpusImportWidget
+from lmda_app.gui.nlp_settings_widget import NlpSettingsWidget
 from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
+from lmda_app.nlp.processed_tokens import ProcessingSummary
 
 
 class MainWindow(QMainWindow):
@@ -44,6 +46,7 @@ class MainWindow(QMainWindow):
         self.content_stack = QStackedWidget()
         self.placeholder_widget = self._create_placeholder_widget()
         self.corpus_import_widget = CorpusImportWidget()
+        self.nlp_settings_widget = NlpSettingsWidget()
         self.log_view = QPlainTextEdit()
         self.status_label = QLabel("Ready")
 
@@ -89,7 +92,7 @@ class MainWindow(QMainWindow):
         validate_corpus_action.triggered.connect(self._select_corpus_import_stage)
 
         process_corpus_action = workflow_menu.addAction("Process Corpus")
-        process_corpus_action.triggered.connect(self._show_not_implemented)
+        process_corpus_action.triggered.connect(self._select_nlp_settings_stage)
 
         extract_keylemmas_action = workflow_menu.addAction("Extract Key Lemmas")
         extract_keylemmas_action.triggered.connect(self._show_not_implemented)
@@ -124,6 +127,7 @@ class MainWindow(QMainWindow):
 
         self.content_stack.addWidget(self.placeholder_widget)
         self.content_stack.addWidget(self.corpus_import_widget)
+        self.content_stack.addWidget(self.nlp_settings_widget)
 
         main_splitter.addWidget(self.content_stack)
         main_splitter.setStretchFactor(0, 0)
@@ -142,6 +146,7 @@ class MainWindow(QMainWindow):
     def _connect_widget_signals(self) -> None:
         """Connect child widget signals."""
         self.corpus_import_widget.corpus_validated.connect(self._on_corpus_validated)
+        self.nlp_settings_widget.corpus_processed.connect(self._on_corpus_processed)
 
     def _create_placeholder_widget(self) -> QWidget:
         """Create the placeholder content widget."""
@@ -200,6 +205,10 @@ class MainWindow(QMainWindow):
         """Select the Corpus Import workflow stage."""
         self._select_stage_by_key("corpus_import")
 
+    def _select_nlp_settings_stage(self) -> None:
+        """Select the NLP Settings workflow stage."""
+        self._select_stage_by_key("nlp_settings")
+
     def _on_workflow_stage_changed(self, row: int) -> None:
         """Update the central content when the selected workflow stage changes."""
         if row < 0:
@@ -214,6 +223,15 @@ class MainWindow(QMainWindow):
         if stage.key == "corpus_import":
             self.content_stack.setCurrentWidget(self.corpus_import_widget)
             self.corpus_import_widget.set_corpus_path(self.state.corpus_directory)
+            return
+
+        if stage.key == "nlp_settings":
+            self.content_stack.setCurrentWidget(self.nlp_settings_widget)
+            self.nlp_settings_widget.set_project_context(
+                project_directory=self.state.project_directory,
+                corpus_directory=self.state.corpus_directory,
+                text_id_mapping_path=self._get_text_id_mapping_path(),
+            )
             return
 
         self.content_stack.setCurrentWidget(self.placeholder_widget)
@@ -321,6 +339,9 @@ class MainWindow(QMainWindow):
 
         if self.state.corpus_directory is not None:
             self.state.set_stage_status("corpus_import", WorkflowStageStatus.COMPLETE)
+
+        if self._get_processed_tokens_path() is not None:
+            self.state.set_stage_status("nlp_settings", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
         self._select_stage_by_key("project_setup")
@@ -456,6 +477,78 @@ class MainWindow(QMainWindow):
             f"{validation_result.inventory.text_count} text files."
         )
         self.log_message(f"Text ID mapping written to: {text_id_mapping_path}")
+
+    def _on_corpus_processed(
+            self,
+            processed_tokens_path: Path,
+            summary: ProcessingSummary,
+    ) -> None:
+        """Handle successful NLP processing."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before processing the corpus.",
+            )
+            return
+
+        self.state.project.output_paths["processed_tokens"] = str(processed_tokens_path)
+        self.state.project.settings["nlp_processing"] = {
+            "processed_texts": summary.processed_texts,
+            "skipped_texts": summary.skipped_texts,
+            "processed_tokens": summary.processed_tokens,
+            "retained_tokens": summary.retained_tokens,
+            "warnings": summary.warning_list(),
+        }
+
+        self.state.set_stage_status("nlp_settings", WorkflowStageStatus.COMPLETE)
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after NLP processing: {exc}")
+            return
+
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("nlp_settings")
+
+        self.log_message(f"Processed corpus with spaCy: {processed_tokens_path}")
+        self.log_message(
+            "NLP summary: "
+            f"{summary.processed_texts} processed texts, "
+            f"{summary.processed_tokens} processed tokens, "
+            f"{summary.retained_tokens} retained tokens."
+        )
+
+    def _get_text_id_mapping_path(self) -> Path | None:
+        """Return the text ID mapping path from the active project."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("text_id_mapping")
+
+        if value is None:
+            return None
+
+        return Path(value)
+
+    def _get_processed_tokens_path(self) -> Path | None:
+        """Return the processed tokens path from the active project if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("processed_tokens")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
 
     def _update_window_title(self) -> None:
         """Update the main window title."""
