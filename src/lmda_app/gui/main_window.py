@@ -28,8 +28,10 @@ from lmda_app.corpus.validation import CorpusValidationResult
 from lmda_app.core.application_state import ApplicationState, WorkflowStageStatus
 from lmda_app.core.project import LmdaProject
 from lmda_app.core.project_io import ProjectIOError, load_project, save_project
+from lmda_app.features.candidate_review import CandidateReviewSummary
 from lmda_app.features.keylemmas import KeyLemmaSummary
 from lmda_app.features.lemma_presence import LemmaPresenceSummary
+from lmda_app.gui.candidate_review_widget import CandidateReviewWidget
 from lmda_app.gui.corpus_import_widget import CorpusImportWidget
 from lmda_app.gui.keylemma_widget import KeyLemmaWidget
 from lmda_app.gui.nlp_settings_widget import NlpSettingsWidget
@@ -51,6 +53,7 @@ class MainWindow(QMainWindow):
         self.corpus_import_widget = CorpusImportWidget()
         self.nlp_settings_widget = NlpSettingsWidget()
         self.keylemma_widget = KeyLemmaWidget()
+        self.candidate_review_widget = CandidateReviewWidget()
         self.log_view = QPlainTextEdit()
         self.status_label = QLabel("Ready")
 
@@ -101,6 +104,9 @@ class MainWindow(QMainWindow):
         extract_keylemmas_action = workflow_menu.addAction("Extract Key Lemmas")
         extract_keylemmas_action.triggered.connect(self._select_keylemmas_stage)
 
+        candidate_review_action = workflow_menu.addAction("Candidate Review")
+        candidate_review_action.triggered.connect(self._select_candidate_review_stage)
+
         run_initial_analysis_action = workflow_menu.addAction("Run Initial Analysis")
         run_initial_analysis_action.triggered.connect(self._show_not_implemented)
 
@@ -133,6 +139,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.corpus_import_widget)
         self.content_stack.addWidget(self.nlp_settings_widget)
         self.content_stack.addWidget(self.keylemma_widget)
+        self.content_stack.addWidget(self.candidate_review_widget)
 
         main_splitter.addWidget(self.content_stack)
         main_splitter.setStretchFactor(0, 0)
@@ -154,6 +161,9 @@ class MainWindow(QMainWindow):
         self.nlp_settings_widget.corpus_processed.connect(self._on_corpus_processed)
         self.nlp_settings_widget.lemma_presence_created.connect(self._on_lemma_presence_created)
         self.keylemma_widget.keylemmas_extracted.connect(self._on_keylemmas_extracted)
+        self.candidate_review_widget.candidate_review_saved.connect(
+            self._on_candidate_review_saved
+        )
 
     def _create_placeholder_widget(self) -> QWidget:
         """Create the placeholder content widget."""
@@ -220,6 +230,10 @@ class MainWindow(QMainWindow):
         """Select the Key Lemmas workflow stage."""
         self._select_stage_by_key("keylemmas")
 
+    def _select_candidate_review_stage(self) -> None:
+        """Select the Candidate Review workflow stage."""
+        self._select_stage_by_key("candidate_review")
+
     def _on_workflow_stage_changed(self, row: int) -> None:
         """Update the central content when the selected workflow stage changes."""
         if row < 0:
@@ -251,6 +265,14 @@ class MainWindow(QMainWindow):
             self.keylemma_widget.set_project_context(
                 project_directory=self.state.project_directory,
                 lemma_presence_path=self._get_lemma_presence_path(),
+            )
+            return
+
+        if stage.key == "candidate_review":
+            self.content_stack.setCurrentWidget(self.candidate_review_widget)
+            self.candidate_review_widget.set_project_context(
+                project_directory=self.state.project_directory,
+                keylemmas_directory=self._get_keylemmas_path(),
             )
             return
 
@@ -365,6 +387,9 @@ class MainWindow(QMainWindow):
 
         if self._get_keylemmas_path() is not None:
             self.state.set_stage_status("keylemmas", WorkflowStageStatus.COMPLETE)
+
+        if self._get_candidate_keylemmas_path() is not None:
+            self.state.set_stage_status("candidate_review", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
         self._select_stage_by_key("project_setup")
@@ -637,6 +662,52 @@ class MainWindow(QMainWindow):
             f"{summary.not_keyword_count} NOTKW."
         )
 
+    def _on_candidate_review_saved(self, summary: CandidateReviewSummary) -> None:
+        """Handle saved candidate review outputs."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before saving candidate review outputs.",
+            )
+            return
+
+        self.state.project.output_paths["candidate_keylemmas"] = str(
+            summary.candidate_output_path
+        )
+        self.state.project.output_paths["excluded_lemmas"] = str(
+            summary.exclusion_output_path
+        )
+        self.state.project.settings["candidate_review"] = {
+            "candidate_count": summary.candidate_count,
+            "excluded_count": summary.excluded_count,
+            "source_table_count": summary.source_table_count,
+        }
+
+        self.state.set_stage_status("candidate_review", WorkflowStageStatus.COMPLETE)
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after candidate review: {exc}")
+            return
+
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("candidate_review")
+
+        self.log_message(f"Candidate key lemmas written to: {summary.candidate_output_path}")
+        self.log_message(f"Excluded lemmas written to: {summary.exclusion_output_path}")
+        self.log_message(
+            "Candidate review summary: "
+            f"{summary.candidate_count} candidates, "
+            f"{summary.excluded_count} excluded."
+        )
+
     def _get_text_id_mapping_path(self) -> Path | None:
         """Return the text ID mapping path from the active project."""
         if self.state.project is None:
@@ -681,6 +752,32 @@ class MainWindow(QMainWindow):
             return None
 
         value = self.state.project.output_paths.get("keylemmas")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_candidate_keylemmas_path(self) -> Path | None:
+        """Return the candidate key-lemma path from the active project if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("candidate_keylemmas")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_excluded_lemmas_path(self) -> Path | None:
+        """Return the excluded lemmas path from the active project if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("excluded_lemmas")
 
         if value is None:
             return None
