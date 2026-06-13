@@ -31,9 +31,11 @@ from lmda_app.core.project_io import ProjectIOError, load_project, save_project
 from lmda_app.features.candidate_review import CandidateReviewSummary
 from lmda_app.features.keylemmas import KeyLemmaSummary
 from lmda_app.features.lemma_presence import LemmaPresenceSummary
+from lmda_app.features.keyword_selection import KeywordSelectionSummary
 from lmda_app.gui.candidate_review_widget import CandidateReviewWidget
 from lmda_app.gui.corpus_import_widget import CorpusImportWidget
 from lmda_app.gui.keylemma_widget import KeyLemmaWidget
+from lmda_app.gui.keyword_selection_widget import KeywordSelectionWidget
 from lmda_app.gui.nlp_settings_widget import NlpSettingsWidget
 from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
 from lmda_app.nlp.processed_tokens import ProcessingSummary
@@ -54,6 +56,7 @@ class MainWindow(QMainWindow):
         self.nlp_settings_widget = NlpSettingsWidget()
         self.keylemma_widget = KeyLemmaWidget()
         self.candidate_review_widget = CandidateReviewWidget()
+        self.keyword_selection_widget = KeywordSelectionWidget()
         self.log_view = QPlainTextEdit()
         self.status_label = QLabel("Ready")
 
@@ -107,6 +110,9 @@ class MainWindow(QMainWindow):
         candidate_review_action = workflow_menu.addAction("Candidate Review")
         candidate_review_action.triggered.connect(self._select_candidate_review_stage)
 
+        keyword_selection_action = workflow_menu.addAction("Select Keywords")
+        keyword_selection_action.triggered.connect(self._select_keyword_selection_stage)
+
         run_initial_analysis_action = workflow_menu.addAction("Run Initial Analysis")
         run_initial_analysis_action.triggered.connect(self._show_not_implemented)
 
@@ -140,6 +146,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.nlp_settings_widget)
         self.content_stack.addWidget(self.keylemma_widget)
         self.content_stack.addWidget(self.candidate_review_widget)
+        self.content_stack.addWidget(self.keyword_selection_widget)
 
         main_splitter.addWidget(self.content_stack)
         main_splitter.setStretchFactor(0, 0)
@@ -163,6 +170,9 @@ class MainWindow(QMainWindow):
         self.keylemma_widget.keylemmas_extracted.connect(self._on_keylemmas_extracted)
         self.candidate_review_widget.candidate_review_saved.connect(
             self._on_candidate_review_saved
+        )
+        self.keyword_selection_widget.keyword_selection_completed.connect(
+            self._on_keyword_selection_completed
         )
 
     def _create_placeholder_widget(self) -> QWidget:
@@ -234,6 +244,10 @@ class MainWindow(QMainWindow):
         """Select the Candidate Review workflow stage."""
         self._select_stage_by_key("candidate_review")
 
+    def _select_keyword_selection_stage(self) -> None:
+        """Select the Keyword Selection workflow stage."""
+        self._select_stage_by_key("keyword_selection")
+
     def _on_workflow_stage_changed(self, row: int) -> None:
         """Update the central content when the selected workflow stage changes."""
         if row < 0:
@@ -273,6 +287,15 @@ class MainWindow(QMainWindow):
             self.candidate_review_widget.set_project_context(
                 project_directory=self.state.project_directory,
                 keylemmas_directory=self._get_keylemmas_path(),
+            )
+            return
+
+        if stage.key == "keyword_selection":
+            self.content_stack.setCurrentWidget(self.keyword_selection_widget)
+            self.keyword_selection_widget.set_project_context(
+                project_directory=self.state.project_directory,
+                keylemmas_directory=self._get_keylemmas_path(),
+                excluded_lemmas_path=self._get_excluded_lemmas_path(),
             )
             return
 
@@ -390,6 +413,9 @@ class MainWindow(QMainWindow):
 
         if self._get_candidate_keylemmas_path() is not None:
             self.state.set_stage_status("candidate_review", WorkflowStageStatus.COMPLETE)
+
+        if self._get_final_keywords_path() is not None:
+            self.state.set_stage_status("keyword_selection", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
         self._select_stage_by_key("project_setup")
@@ -708,6 +734,53 @@ class MainWindow(QMainWindow):
             f"{summary.excluded_count} excluded."
         )
 
+    def _on_keyword_selection_completed(self, summary: KeywordSelectionSummary) -> None:
+        """Handle completed keyword selection."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before selecting keywords.",
+            )
+            return
+
+        self.state.project.output_paths["keywords"] = str(summary.output_directory)
+        self.state.project.output_paths["final_keywords"] = str(summary.final_keyword_path)
+        self.state.project.output_paths["keyword_selection_summary"] = str(
+            summary.summary_output_path
+        )
+        self.state.project.settings["keyword_selection"] = {
+            "per_subcorpus_quota": summary.per_subcorpus_quota,
+            "max_total_before_deduplication": summary.max_total_before_deduplication,
+            "total_before_deduplication": summary.total_before_deduplication,
+            "final_keyword_count": summary.final_keyword_count,
+            "duplicates_removed": summary.duplicates_removed,
+        }
+
+        self.state.set_stage_status("keyword_selection", WorkflowStageStatus.COMPLETE)
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after keyword selection: {exc}")
+            return
+
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("keyword_selection")
+
+        self.log_message(f"Keyword lists written to: {summary.output_directory}")
+        self.log_message(f"Final keyword list written to: {summary.final_keyword_path}")
+        self.log_message(
+            "Keyword selection summary: "
+            f"{summary.final_keyword_count} final keywords, "
+            f"{summary.duplicates_removed} duplicates removed."
+        )
+
     def _get_text_id_mapping_path(self) -> Path | None:
         """Return the text ID mapping path from the active project."""
         if self.state.project is None:
@@ -778,6 +851,19 @@ class MainWindow(QMainWindow):
             return None
 
         value = self.state.project.output_paths.get("excluded_lemmas")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_final_keywords_path(self) -> Path | None:
+        """Return the final keyword list path from the active project if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("final_keywords")
 
         if value is None:
             return None
