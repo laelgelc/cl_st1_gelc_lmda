@@ -247,19 +247,18 @@ Status: Deferred beyond v1
 
 Decision: Interval data mode is not supported in v1.
 
-### Which polychoric correlation implementation will be used?
+### Which polychoric/tetrachoric correlation implementation will be used?
 
 Status: Needs technical investigation
 
-Decision needed: Select the library or implementation strategy for polychoric correlations in Python.
+Decision needed: Select a Python-compatible implementation for tetrachoric/polychoric correlations.
 
-Considerations:
+Notes:
 
-- compatibility with binary variables;
-- numerical stability;
-- performance for many variables;
-- similarity to the reference workflow;
-- maintainability.
+- v1 binary matrices require tetrachoric correlation, the binary special case of polychoric correlation.
+- R's `psych` package provides established tetrachoric/polychoric functionality.
+- A pure Python implementation may have performance and validation risks.
+- A temporary phi/Pearson backend may be used for development only, but the final method must be validated against the reference workflow.
 
 ### Which factor extraction method is used?
 

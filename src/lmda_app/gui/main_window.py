@@ -42,6 +42,7 @@ from lmda_app.gui.matrix_widget import MatrixWidget
 from lmda_app.gui.nlp_settings_widget import NlpSettingsWidget
 from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
 from lmda_app.nlp.processed_tokens import ProcessingSummary
+from lmda_app.statistics.correlation import CorrelationSummary
 from lmda_app.statistics.matrix_input import StatisticalInputSummary
 
 
@@ -188,6 +189,9 @@ class MainWindow(QMainWindow):
         self.matrix_widget.binary_matrix_created.connect(self._on_binary_matrix_created)
         self.initial_analysis_widget.statistical_input_prepared.connect(
             self._on_statistical_input_prepared
+        )
+        self.initial_analysis_widget.correlation_matrix_computed.connect(
+            self._on_correlation_matrix_computed
         )
 
     def _create_placeholder_widget(self) -> QWidget:
@@ -337,6 +341,7 @@ class MainWindow(QMainWindow):
             self.initial_analysis_widget.set_project_context(
                 project_directory=self.state.project_directory,
                 binary_matrix_path=self._get_binary_matrix_path(),
+                statistical_matrix_path=self._get_statistical_matrix_path(),
             )
             return
 
@@ -368,8 +373,8 @@ class MainWindow(QMainWindow):
             ),
             "matrix": "Build and inspect the binary text-by-keyword matrix.",
             "initial_analysis": (
-                "Prepare statistical input by removing all-zero rows before correlation "
-                "and factor analysis."
+                "Prepare statistical input, then compute the correlation matrix. "
+                "The current correlation backend is a temporary phi/Pearson development backend."
             ),
             "factor_retention": (
                 "Review the scree plot and select the number of factors to extract."
@@ -925,6 +930,44 @@ class MainWindow(QMainWindow):
             f"{summary.keyword_count} keywords."
         )
 
+    def _on_correlation_matrix_computed(self, summary: CorrelationSummary) -> None:
+        """Handle successful correlation matrix computation."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before computing correlations.",
+            )
+            return
+
+        self.state.project.output_paths["correlation_matrix"] = str(summary.output_matrix_path)
+        self.state.project.settings["correlation"] = {
+            "method": summary.method.value,
+            "observation_count": summary.observation_count,
+            "variable_count": summary.variable_count,
+            "missing_values_replaced": summary.missing_values_replaced,
+            "development_backend": summary.method.value == "phi",
+        }
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after correlation computation: {exc}")
+            return
+
+        self.log_message(f"Correlation matrix written to: {summary.output_matrix_path}")
+        self.log_message(
+            "Correlation summary: "
+            f"{summary.variable_count} variables, "
+            f"{summary.observation_count} observations, "
+            f"{summary.missing_values_replaced} missing values replaced."
+        )
+
     def _get_text_id_mapping_path(self) -> Path | None:
         """Return the text ID mapping path from the active project."""
         if self.state.project is None:
@@ -1034,6 +1077,19 @@ class MainWindow(QMainWindow):
             return None
 
         value = self.state.project.output_paths.get("statistical_matrix")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_correlation_matrix_path(self) -> Path | None:
+        """Return the correlation matrix path from the active project if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("correlation_matrix")
 
         if value is None:
             return None

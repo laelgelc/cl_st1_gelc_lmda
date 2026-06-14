@@ -4,6 +4,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
+    QComboBox,
     QGroupBox,
     QLabel,
     QMessageBox,
@@ -14,21 +15,32 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from lmda_app.statistics.correlation import (
+    CorrelationError,
+    CorrelationMethod,
+    CorrelationSummary,
+    compute_correlation_matrix,
+)
 from lmda_app.statistics.matrix_input import StatisticalInputSummary, prepare_statistical_input
 
 
 class InitialAnalysisWidget(QWidget):
-    """Widget for preparing statistical input before initial analysis."""
+    """Widget for preparing statistical input and computing correlations."""
 
     statistical_input_prepared = Signal(StatisticalInputSummary)
+    correlation_matrix_computed = Signal(CorrelationSummary)
 
     def __init__(self, parent=None) -> None:  # noqa: ANN001
         super().__init__(parent)
 
         self.project_directory: Path | None = None
         self.binary_matrix_path: Path | None = None
+        self.statistical_matrix_path: Path | None = None
 
-        self.run_button = QPushButton("Prepare Statistical Input")
+        self.prepare_input_button = QPushButton("Prepare Statistical Input")
+        self.compute_correlation_button = QPushButton("Compute Correlation Matrix")
+
+        self.correlation_method_combo = QComboBox()
         self.progress_bar = QProgressBar()
         self.progress_label = QLabel("Ready")
         self.summary_text = QTextEdit()
@@ -42,34 +54,54 @@ class InitialAnalysisWidget(QWidget):
         root_layout = QVBoxLayout(self)
 
         intro = QLabel(
-            "Prepare the binary matrix for statistical analysis by removing all-zero "
-            "text rows and writing the retained statistical matrix."
+            "Prepare the binary matrix for statistical analysis, then compute the "
+            "correlation matrix. The current correlation backend is a temporary "
+            "phi/Pearson development backend for binary variables."
         )
         intro.setWordWrap(True)
 
-        self.run_button.clicked.connect(self._prepare_input)
+        self.prepare_input_button.clicked.connect(self._prepare_input)
+        self.compute_correlation_button.clicked.connect(self._compute_correlation_matrix)
+
+        self.correlation_method_combo.addItem(
+            "Phi/Pearson development backend",
+            CorrelationMethod.PHI,
+        )
+        self.correlation_method_combo.addItem(
+            "Tetrachoric/polychoric target backend (not implemented)",
+            CorrelationMethod.TETRACHORIC,
+        )
 
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
 
-        summary_group = QGroupBox("Statistical input summary")
+        settings_group = QGroupBox("Correlation settings")
+        settings_layout = QVBoxLayout(settings_group)
+        settings_layout.addWidget(QLabel("Correlation method:"))
+        settings_layout.addWidget(self.correlation_method_combo)
+
+        summary_group = QGroupBox("Initial analysis summary")
         summary_layout = QVBoxLayout(summary_group)
         summary_layout.addWidget(self.summary_text)
 
         root_layout.addWidget(intro)
-        root_layout.addWidget(self.run_button)
+        root_layout.addWidget(self.prepare_input_button)
+        root_layout.addWidget(settings_group)
+        root_layout.addWidget(self.compute_correlation_button)
         root_layout.addWidget(self.progress_label)
         root_layout.addWidget(self.progress_bar)
         root_layout.addWidget(summary_group, stretch=1)
 
     def set_project_context(
-        self,
-        project_directory: Path | None,
-        binary_matrix_path: Path | None,
+            self,
+            project_directory: Path | None,
+            binary_matrix_path: Path | None,
+            statistical_matrix_path: Path | None = None,
     ) -> None:
-        """Set project context for statistical input preparation."""
+        """Set project context for statistical input preparation and correlation."""
         self.project_directory = project_directory
         self.binary_matrix_path = binary_matrix_path
+        self.statistical_matrix_path = statistical_matrix_path
 
     def _prepare_input(self) -> None:
         """Prepare statistical input files."""
@@ -111,19 +143,68 @@ class InitialAnalysisWidget(QWidget):
             )
             return
 
+        self.statistical_matrix_path = summary.statistical_matrix_path
         self._set_processing_ui("Statistical input prepared", is_processing=False)
-        self._display_summary(summary)
+        self._display_statistical_input_summary(summary)
         self.statistical_input_prepared.emit(summary)
 
+    def _compute_correlation_matrix(self) -> None:
+        """Compute the correlation matrix."""
+        if self.project_directory is None:
+            QMessageBox.warning(
+                self,
+                "No project",
+                "Create or open a project before computing correlations.",
+            )
+            return
+
+        if self.statistical_matrix_path is None or not self.statistical_matrix_path.exists():
+            QMessageBox.warning(
+                self,
+                "Missing statistical matrix",
+                "Prepare statistical input before computing correlations.",
+            )
+            return
+
+        method = self.correlation_method_combo.currentData()
+
+        output_directory = self.project_directory / "statistics"
+
+        self._set_processing_ui("Computing correlation matrix...", is_processing=True)
+
+        try:
+            summary = compute_correlation_matrix(
+                statistical_matrix_path=self.statistical_matrix_path,
+                output_directory=output_directory,
+                method=method,
+            )
+        except (OSError, CorrelationError) as exc:
+            self._set_processing_ui(
+                "Correlation computation failed",
+                is_processing=False,
+                complete=False,
+            )
+            QMessageBox.critical(
+                self,
+                "Could not compute correlation matrix",
+                str(exc),
+            )
+            return
+
+        self._set_processing_ui("Correlation matrix computed", is_processing=False)
+        self._display_correlation_summary(summary)
+        self.correlation_matrix_computed.emit(summary)
+
     def _set_processing_ui(
-        self,
-        message: str,
-        *,
-        is_processing: bool,
-        complete: bool = True,
+            self,
+            message: str,
+            *,
+            is_processing: bool,
+            complete: bool = True,
     ) -> None:
         """Update processing UI."""
-        self.run_button.setDisabled(is_processing)
+        self.prepare_input_button.setDisabled(is_processing)
+        self.compute_correlation_button.setDisabled(is_processing)
         self.progress_label.setText(message)
 
         if is_processing:
@@ -133,9 +214,11 @@ class InitialAnalysisWidget(QWidget):
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(100 if complete else 0)
 
-    def _display_summary(self, summary: StatisticalInputSummary) -> None:
+    def _display_statistical_input_summary(self, summary: StatisticalInputSummary) -> None:
         """Display statistical input summary."""
         lines = [
+            "Statistical input prepared",
+            "",
             f"Input matrix: {summary.input_matrix_path}",
             f"Statistical matrix: {summary.statistical_matrix_path}",
             f"Metadata: {summary.metadata_output_path}",
@@ -145,6 +228,25 @@ class InitialAnalysisWidget(QWidget):
             f"Retained texts: {summary.retained_text_count}",
             f"Removed all-zero texts: {summary.removed_all_zero_count}",
             f"Keyword variables: {summary.keyword_count}",
+        ]
+
+        self.summary_text.setPlainText("\n".join(lines))
+
+    def _display_correlation_summary(self, summary: CorrelationSummary) -> None:
+        """Display correlation summary."""
+        lines = [
+            "Correlation matrix computed",
+            "",
+            f"Method: {summary.method.value}",
+            f"Input matrix: {summary.input_matrix_path}",
+            f"Output matrix: {summary.output_matrix_path}",
+            "",
+            f"Observations: {summary.observation_count}",
+            f"Variables: {summary.variable_count}",
+            f"Missing correlations replaced: {summary.missing_values_replaced}",
+            "",
+            "Note: the current phi/Pearson backend is a development backend. "
+            "The final v1 target remains tetrachoric/polychoric correlation.",
         ]
 
         self.summary_text.setPlainText("\n".join(lines))
