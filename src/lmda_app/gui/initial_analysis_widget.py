@@ -21,14 +21,20 @@ from lmda_app.statistics.correlation import (
     CorrelationSummary,
     compute_correlation_matrix,
 )
+from lmda_app.statistics.eigen_analysis import (
+    EigenAnalysisError,
+    EigenAnalysisSummary,
+    compute_eigen_analysis,
+)
 from lmda_app.statistics.matrix_input import StatisticalInputSummary, prepare_statistical_input
 
 
 class InitialAnalysisWidget(QWidget):
-    """Widget for preparing statistical input and computing correlations."""
+    """Widget for preparing statistical input, correlations, and eigen-analysis."""
 
     statistical_input_prepared = Signal(StatisticalInputSummary)
     correlation_matrix_computed = Signal(CorrelationSummary)
+    eigen_analysis_computed = Signal(EigenAnalysisSummary)
 
     def __init__(self, parent=None) -> None:  # noqa: ANN001
         super().__init__(parent)
@@ -36,9 +42,11 @@ class InitialAnalysisWidget(QWidget):
         self.project_directory: Path | None = None
         self.binary_matrix_path: Path | None = None
         self.statistical_matrix_path: Path | None = None
+        self.correlation_matrix_path: Path | None = None
 
         self.prepare_input_button = QPushButton("Prepare Statistical Input")
         self.compute_correlation_button = QPushButton("Compute Correlation Matrix")
+        self.compute_eigen_analysis_button = QPushButton("Compute Eigenvalues / Scree Data")
 
         self.correlation_method_combo = QComboBox()
         self.progress_bar = QProgressBar()
@@ -54,14 +62,16 @@ class InitialAnalysisWidget(QWidget):
         root_layout = QVBoxLayout(self)
 
         intro = QLabel(
-            "Prepare the binary matrix for statistical analysis, then compute the "
-            "correlation matrix. The current correlation backend is a temporary "
-            "phi/Pearson development backend for binary variables."
+            "Prepare the binary matrix for statistical analysis, compute the "
+            "correlation matrix, then compute eigenvalues and scree data. "
+            "The current correlation backend is a temporary phi/Pearson "
+            "development backend for binary variables."
         )
         intro.setWordWrap(True)
 
         self.prepare_input_button.clicked.connect(self._prepare_input)
         self.compute_correlation_button.clicked.connect(self._compute_correlation_matrix)
+        self.compute_eigen_analysis_button.clicked.connect(self._compute_eigen_analysis)
 
         self.correlation_method_combo.addItem(
             "Phi/Pearson development backend",
@@ -88,6 +98,7 @@ class InitialAnalysisWidget(QWidget):
         root_layout.addWidget(self.prepare_input_button)
         root_layout.addWidget(settings_group)
         root_layout.addWidget(self.compute_correlation_button)
+        root_layout.addWidget(self.compute_eigen_analysis_button)
         root_layout.addWidget(self.progress_label)
         root_layout.addWidget(self.progress_bar)
         root_layout.addWidget(summary_group, stretch=1)
@@ -97,11 +108,13 @@ class InitialAnalysisWidget(QWidget):
             project_directory: Path | None,
             binary_matrix_path: Path | None,
             statistical_matrix_path: Path | None = None,
+            correlation_matrix_path: Path | None = None,
     ) -> None:
-        """Set project context for statistical input preparation and correlation."""
+        """Set project context for statistical input, correlation, and eigen-analysis."""
         self.project_directory = project_directory
         self.binary_matrix_path = binary_matrix_path
         self.statistical_matrix_path = statistical_matrix_path
+        self.correlation_matrix_path = correlation_matrix_path
 
     def _prepare_input(self) -> None:
         """Prepare statistical input files."""
@@ -191,9 +204,54 @@ class InitialAnalysisWidget(QWidget):
             )
             return
 
+        self.correlation_matrix_path = summary.output_matrix_path
         self._set_processing_ui("Correlation matrix computed", is_processing=False)
         self._display_correlation_summary(summary)
         self.correlation_matrix_computed.emit(summary)
+
+    def _compute_eigen_analysis(self) -> None:
+        """Compute eigenvalues and scree data from the correlation matrix."""
+        if self.project_directory is None:
+            QMessageBox.warning(
+                self,
+                "No project",
+                "Create or open a project before computing eigenvalues.",
+            )
+            return
+
+        if self.correlation_matrix_path is None or not self.correlation_matrix_path.exists():
+            QMessageBox.warning(
+                self,
+                "Missing correlation matrix",
+                "Compute the correlation matrix before computing eigenvalues.",
+            )
+            return
+
+        output_directory = self.project_directory / "statistics"
+
+        self._set_processing_ui("Computing eigenvalues and scree data...", is_processing=True)
+
+        try:
+            summary = compute_eigen_analysis(
+                correlation_matrix_path=self.correlation_matrix_path,
+                output_directory=output_directory,
+            )
+        except (OSError, EigenAnalysisError, ValueError) as exc:
+            self._set_processing_ui(
+                "Eigen-analysis failed",
+                is_processing=False,
+                complete=False,
+            )
+            QMessageBox.critical(
+                self,
+                "Could not compute eigen-analysis",
+                str(exc),
+            )
+            return
+
+        self._set_processing_ui("Eigen-analysis complete", is_processing=False)
+        self._display_eigen_analysis_summary(summary)
+        self.eigen_analysis_computed.emit(summary)
 
     def _set_processing_ui(
             self,
@@ -205,6 +263,7 @@ class InitialAnalysisWidget(QWidget):
         """Update processing UI."""
         self.prepare_input_button.setDisabled(is_processing)
         self.compute_correlation_button.setDisabled(is_processing)
+        self.compute_eigen_analysis_button.setDisabled(is_processing)
         self.progress_label.setText(message)
 
         if is_processing:
@@ -247,6 +306,29 @@ class InitialAnalysisWidget(QWidget):
             "",
             "Note: the current phi/Pearson backend is a development backend. "
             "The final v1 target remains tetrachoric/polychoric correlation.",
+        ]
+
+        self.summary_text.setPlainText("\n".join(lines))
+
+    def _display_eigen_analysis_summary(self, summary: EigenAnalysisSummary) -> None:
+        """Display eigen-analysis summary."""
+        lines = [
+            "Eigen-analysis complete",
+            "",
+            f"Input correlation matrix: {summary.input_correlation_path}",
+            f"Eigenvalues: {summary.eigenvalues_output_path}",
+            f"Scree data: {summary.scree_output_path}",
+            "",
+            f"Variables: {summary.variable_count}",
+            f"Components: {summary.component_count}",
+            f"Largest eigenvalue: {summary.largest_eigenvalue:.6f}",
+            f"Smallest eigenvalue: {summary.smallest_eigenvalue:.6f}",
+            f"Components with eigenvalue > 1.0: {summary.kaiser_component_count}",
+            f"Negative eigenvalues: {summary.negative_eigenvalue_count}",
+            "",
+            "These outputs are intended for initial factor-retention inspection. "
+            "The current correlation matrix is still based on the phi/Pearson "
+            "development backend.",
         ]
 
         self.summary_text.setPlainText("\n".join(lines))

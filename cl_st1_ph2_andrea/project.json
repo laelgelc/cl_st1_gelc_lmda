@@ -2,7 +2,7 @@
   "name": "cl_st1_ph2_andrea",
   "directory": "cl_st1_ph2_andrea",
   "created_at": "2026-06-12T19:24:06",
-  "updated_at": "2026-06-14T07:12:40",
+  "updated_at": "2026-06-14T08:15:30",
   "corpus_directory": "/home/eyamrog/PycharmProjects/cl_st1_andrea/cl_st1_ph2_andrea/corpus/commercial_verbal",
   "settings": {
     "corpus_validation": {
@@ -69,6 +69,14 @@
       "variable_count": 277,
       "missing_values_replaced": 0,
       "development_backend": true
+    },
+    "eigen_analysis": {
+      "variable_count": 277,
+      "component_count": 277,
+      "largest_eigenvalue": 6.352370066581681,
+      "smallest_eigenvalue": 0.06025675759173538,
+      "kaiser_component_count": 107,
+      "negative_eigenvalue_count": 0
     }
   },
   "output_paths": {
@@ -87,6 +95,8 @@
     "statistical_matrix": "cl_st1_ph2_andrea/statistics/statistical_matrix.tsv",
     "statistical_matrix_metadata": "cl_st1_ph2_andrea/statistics/statistical_matrix_metadata.tsv",
     "all_zero_rows_for_statistics": "cl_st1_ph2_andrea/statistics/all_zero_rows_for_statistics.tsv",
-    "correlation_matrix": "cl_st1_ph2_andrea/statistics/correlation_matrix.tsv"
+    "correlation_matrix": "cl_st1_ph2_andrea/statistics/correlation_matrix.tsv",
+    "eigenvalues": "cl_st1_ph2_andrea/statistics/eigenvalues.tsv",
+    "scree_plot": "cl_st1_ph2_andrea/statistics/scree_plot.tsv"
   }
 }

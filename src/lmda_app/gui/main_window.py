@@ -43,6 +43,7 @@ from lmda_app.gui.nlp_settings_widget import NlpSettingsWidget
 from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
 from lmda_app.nlp.processed_tokens import ProcessingSummary
 from lmda_app.statistics.correlation import CorrelationSummary
+from lmda_app.statistics.eigen_analysis import EigenAnalysisSummary
 from lmda_app.statistics.matrix_input import StatisticalInputSummary
 
 
@@ -193,6 +194,9 @@ class MainWindow(QMainWindow):
         self.initial_analysis_widget.correlation_matrix_computed.connect(
             self._on_correlation_matrix_computed
         )
+        self.initial_analysis_widget.eigen_analysis_computed.connect(
+            self._on_eigen_analysis_computed
+        )
 
     def _create_placeholder_widget(self) -> QWidget:
         """Create the placeholder content widget."""
@@ -342,6 +346,7 @@ class MainWindow(QMainWindow):
                 project_directory=self.state.project_directory,
                 binary_matrix_path=self._get_binary_matrix_path(),
                 statistical_matrix_path=self._get_statistical_matrix_path(),
+                correlation_matrix_path=self._get_correlation_matrix_path(),
             )
             return
 
@@ -373,8 +378,9 @@ class MainWindow(QMainWindow):
             ),
             "matrix": "Build and inspect the binary text-by-keyword matrix.",
             "initial_analysis": (
-                "Prepare statistical input, then compute the correlation matrix. "
-                "The current correlation backend is a temporary phi/Pearson development backend."
+                "Prepare statistical input, compute the correlation matrix, then compute "
+                "eigenvalues and scree data. The current correlation backend is a temporary "
+                "phi/Pearson development backend."
             ),
             "factor_retention": (
                 "Review the scree plot and select the number of factors to extract."
@@ -468,6 +474,9 @@ class MainWindow(QMainWindow):
             self.state.set_stage_status("matrix", WorkflowStageStatus.COMPLETE)
 
         if self._get_statistical_matrix_path() is not None:
+            self.state.set_stage_status("initial_analysis", WorkflowStageStatus.COMPLETE)
+
+        if self._get_eigenvalues_path() is not None:
             self.state.set_stage_status("initial_analysis", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
@@ -968,6 +977,52 @@ class MainWindow(QMainWindow):
             f"{summary.missing_values_replaced} missing values replaced."
         )
 
+    def _on_eigen_analysis_computed(self, summary: EigenAnalysisSummary) -> None:
+        """Handle successful eigen-analysis computation."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before computing eigen-analysis.",
+            )
+            return
+
+        self.state.project.output_paths["eigenvalues"] = str(summary.eigenvalues_output_path)
+        self.state.project.output_paths["scree_plot"] = str(summary.scree_output_path)
+        self.state.project.settings["eigen_analysis"] = {
+            "variable_count": summary.variable_count,
+            "component_count": summary.component_count,
+            "largest_eigenvalue": summary.largest_eigenvalue,
+            "smallest_eigenvalue": summary.smallest_eigenvalue,
+            "kaiser_component_count": summary.kaiser_component_count,
+            "negative_eigenvalue_count": summary.negative_eigenvalue_count,
+        }
+
+        self.state.set_stage_status("initial_analysis", WorkflowStageStatus.COMPLETE)
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after eigen-analysis: {exc}")
+            return
+
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("initial_analysis")
+
+        self.log_message(f"Eigenvalues written to: {summary.eigenvalues_output_path}")
+        self.log_message(f"Scree data written to: {summary.scree_output_path}")
+        self.log_message(
+            "Eigen-analysis summary: "
+            f"{summary.component_count} components, "
+            f"{summary.kaiser_component_count} eigenvalues > 1.0, "
+            f"{summary.negative_eigenvalue_count} negative eigenvalues."
+        )
+
     def _get_text_id_mapping_path(self) -> Path | None:
         """Return the text ID mapping path from the active project."""
         if self.state.project is None:
@@ -1090,6 +1145,32 @@ class MainWindow(QMainWindow):
             return None
 
         value = self.state.project.output_paths.get("correlation_matrix")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_eigenvalues_path(self) -> Path | None:
+        """Return the eigenvalues path from the active project if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("eigenvalues")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_scree_plot_path(self) -> Path | None:
+        """Return the scree plot data path from the active project if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("scree_plot")
 
         if value is None:
             return None
