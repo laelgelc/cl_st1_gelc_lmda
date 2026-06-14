@@ -86,7 +86,15 @@ def _compute_phi_correlation_matrix(
     correlation = correlation.fillna(0.0)
 
     # Ensure diagonal is exactly 1.0, including columns that were constant.
-    np.fill_diagonal(correlation.values, 1.0)
+    # Use a writable copy instead of mutating correlation.values directly,
+    # because pandas may expose a read-only NumPy array.
+    correlation_values = correlation.to_numpy(dtype=float, copy=True)
+    np.fill_diagonal(correlation_values, 1.0)
+    correlation = pd.DataFrame(
+        correlation_values,
+        index=correlation.index,
+        columns=correlation.columns,
+    )
 
     _write_correlation_matrix(correlation, output_matrix_path)
 
