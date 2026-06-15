@@ -2,7 +2,7 @@
   "name": "cl_st1_ph2_andrea",
   "directory": "cl_st1_ph2_andrea",
   "created_at": "2026-06-12T19:24:06",
-  "updated_at": "2026-06-15T17:11:41",
+  "updated_at": "2026-06-15T19:10:58",
   "corpus_directory": "/home/eyamrog/PycharmProjects/cl_st1_andrea/cl_st1_ph2_andrea/corpus/commercial_verbal",
   "settings": {
     "corpus_validation": {
@@ -121,6 +121,16 @@
       "smallest_eigenvalue": 0.1386912323320808,
       "kaiser_component_count": 10,
       "negative_eigenvalue_count": 0
+    },
+    "final_factor_analysis": {
+      "method": "pca_style_extraction_from_correlation_development_backend",
+      "rotation_method": "promax_power_4_after_varimax",
+      "development_backend": true,
+      "selected_factor_count": 5,
+      "variable_count": 32,
+      "largest_unrotated_loading_abs": 0.8239400129102036,
+      "largest_rotated_loading_abs": 0.853229934186788,
+      "factor_correlation_max_abs_off_diagonal": 0.2091368062207117
     }
   },
   "output_paths": {
@@ -150,6 +160,10 @@
     "reduced_statistical_matrix": "cl_st1_ph2_andrea/statistics/reduced_statistical_matrix.tsv",
     "reduced_correlation_matrix": "cl_st1_ph2_andrea/statistics/reduced_correlation_matrix.tsv",
     "reduced_eigenvalues": "cl_st1_ph2_andrea/statistics/reduced_eigenvalues.tsv",
-    "reduced_scree_plot": "cl_st1_ph2_andrea/statistics/reduced_scree_plot.tsv"
+    "reduced_scree_plot": "cl_st1_ph2_andrea/statistics/reduced_scree_plot.tsv",
+    "final_unrotated_factor_loadings": "cl_st1_ph2_andrea/statistics/final_unrotated_factor_loadings.tsv",
+    "final_rotated_factor_pattern": "cl_st1_ph2_andrea/statistics/final_rotated_factor_pattern.tsv",
+    "final_factor_correlation_matrix": "cl_st1_ph2_andrea/statistics/final_factor_correlation_matrix.tsv",
+    "final_factor_analysis_summary": "cl_st1_ph2_andrea/statistics/final_factor_analysis_summary.tsv"
   }
 }

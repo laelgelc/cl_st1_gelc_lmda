@@ -40,6 +40,7 @@ from lmda_app.gui.communality_review_widget import (
 )
 from lmda_app.gui.corpus_import_widget import CorpusImportWidget
 from lmda_app.gui.factor_retention_widget import FactorRetentionSummary, FactorRetentionWidget
+from lmda_app.gui.final_analysis_widget import FinalAnalysisWidget
 from lmda_app.gui.initial_analysis_widget import InitialAnalysisWidget
 from lmda_app.gui.keylemma_widget import KeyLemmaWidget
 from lmda_app.gui.keyword_selection_widget import KeywordSelectionWidget
@@ -49,6 +50,7 @@ from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
 from lmda_app.nlp.processed_tokens import ProcessingSummary
 from lmda_app.statistics.correlation import CorrelationSummary
 from lmda_app.statistics.eigen_analysis import EigenAnalysisSummary
+from lmda_app.statistics.final_factor_analysis import FinalFactorAnalysisSummary
 from lmda_app.statistics.initial_factor_extraction import InitialFactorExtractionSummary
 from lmda_app.statistics.matrix_input import StatisticalInputSummary
 from lmda_app.statistics.reduced_matrix import ReducedMatrixSummary
@@ -74,6 +76,7 @@ class MainWindow(QMainWindow):
         self.initial_analysis_widget = InitialAnalysisWidget()
         self.factor_retention_widget = FactorRetentionWidget()
         self.communality_review_widget = CommunalityReviewWidget()
+        self.final_analysis_widget = FinalAnalysisWidget()
         self.log_view = QPlainTextEdit()
         self.status_label = QLabel("Ready")
 
@@ -143,7 +146,7 @@ class MainWindow(QMainWindow):
         communality_review_action.triggered.connect(self._select_communality_review_stage)
 
         run_final_analysis_action = workflow_menu.addAction("Run Final Analysis")
-        run_final_analysis_action.triggered.connect(self._show_not_implemented)
+        run_final_analysis_action.triggered.connect(self._select_final_analysis_stage)
 
         help_menu = menu_bar.addMenu("&Help")
 
@@ -177,6 +180,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.initial_analysis_widget)
         self.content_stack.addWidget(self.factor_retention_widget)
         self.content_stack.addWidget(self.communality_review_widget)
+        self.content_stack.addWidget(self.final_analysis_widget)
 
         main_splitter.addWidget(self.content_stack)
         main_splitter.setStretchFactor(0, 0)
@@ -231,6 +235,9 @@ class MainWindow(QMainWindow):
         )
         self.communality_review_widget.reduced_eigen_analysis_computed.connect(
             self._on_reduced_eigen_analysis_computed
+        )
+        self.final_analysis_widget.final_factor_analysis_computed.connect(
+            self._on_final_factor_analysis_computed
         )
 
     def _create_placeholder_widget(self) -> QWidget:
@@ -321,6 +328,10 @@ class MainWindow(QMainWindow):
     def _select_communality_review_stage(self) -> None:
         """Select the Communality Review workflow stage."""
         self._select_stage_by_key("communality_review")
+
+    def _select_final_analysis_stage(self) -> None:
+        """Select the Final Analysis workflow stage."""
+        self._select_stage_by_key("final_analysis")
 
     def _on_workflow_stage_changed(self, row: int) -> None:
         """Update the central content when the selected workflow stage changes."""
@@ -416,6 +427,15 @@ class MainWindow(QMainWindow):
             )
             return
 
+        if stage.key == "final_analysis":
+            self.content_stack.setCurrentWidget(self.final_analysis_widget)
+            self.final_analysis_widget.set_project_context(
+                project_directory=self.state.project_directory,
+                reduced_correlation_matrix_path=self._get_reduced_correlation_matrix_path(),
+                selected_factor_count=self._get_selected_factor_count(),
+            )
+            return
+
         self.content_stack.setCurrentWidget(self.placeholder_widget)
         self.content_title.setText(stage.label)
         self.content_body.setText(self._placeholder_text_for_stage(stage.key))
@@ -458,7 +478,9 @@ class MainWindow(QMainWindow):
                 "and reduced eigen-analysis outputs."
             ),
             "final_analysis": (
-                "Run final factor extraction, promax rotation, factor scoring, and ANOVA."
+                "Run final factor extraction and promax rotation from the reduced "
+                "correlation matrix. The current implementation uses a clearly labelled "
+                "development backend."
             ),
             "results": (
                 "Inspect factor loadings, scores, group means, ANOVA results, and high-scoring texts."
@@ -568,6 +590,9 @@ class MainWindow(QMainWindow):
 
         if self._get_reduced_eigenvalues_path() is not None:
             self.state.set_stage_status("communality_review", WorkflowStageStatus.COMPLETE)
+
+        if self._get_final_rotated_factor_pattern_path() is not None:
+            self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
         self._select_stage_by_key("project_setup")
@@ -1208,6 +1233,68 @@ class MainWindow(QMainWindow):
             f"{summary.negative_eigenvalue_count} negative eigenvalues."
         )
 
+    def _on_final_factor_analysis_computed(
+            self,
+            summary: FinalFactorAnalysisSummary,
+    ) -> None:
+        """Handle completed final factor analysis."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before running final factor analysis.",
+            )
+            return
+
+        self.state.project.output_paths["final_unrotated_factor_loadings"] = str(
+            summary.unrotated_loadings_output_path
+        )
+        self.state.project.output_paths["final_rotated_factor_pattern"] = str(
+            summary.rotated_pattern_output_path
+        )
+        self.state.project.output_paths["final_factor_correlation_matrix"] = str(
+            summary.factor_correlation_output_path
+        )
+        self.state.project.output_paths["final_factor_analysis_summary"] = str(
+            summary.summary_output_path
+        )
+        self.state.project.settings["final_factor_analysis"] = {
+            "method": summary.method,
+            "rotation_method": summary.rotation_method,
+            "development_backend": summary.development_backend,
+            "selected_factor_count": summary.selected_factor_count,
+            "variable_count": summary.variable_count,
+            "largest_unrotated_loading_abs": summary.largest_unrotated_loading_abs,
+            "largest_rotated_loading_abs": summary.largest_rotated_loading_abs,
+            "factor_correlation_max_abs_off_diagonal": (
+                summary.factor_correlation_max_abs_off_diagonal
+            ),
+        }
+
+        self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
+        self._save_project_after_stage("final factor analysis")
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("final_analysis")
+
+        self.log_message(
+            f"Final unrotated factor loadings written to: "
+            f"{summary.unrotated_loadings_output_path}"
+        )
+        self.log_message(
+            f"Final rotated factor pattern written to: "
+            f"{summary.rotated_pattern_output_path}"
+        )
+        self.log_message(
+            f"Final factor correlation matrix written to: "
+            f"{summary.factor_correlation_output_path}"
+        )
+        self.log_message(
+            "Final factor analysis summary: "
+            f"{summary.selected_factor_count} factors, "
+            f"{summary.variable_count} variables. "
+            "Backend: development."
+        )
+
     def _save_project_after_stage(self, stage_description: str) -> bool:
         """Save the project after a workflow update."""
         if self.state.project is None:
@@ -1322,6 +1409,35 @@ class MainWindow(QMainWindow):
     def _get_reduced_scree_plot_path(self) -> Path | None:
         """Return reduced scree plot data path if it exists."""
         return self._get_output_path("reduced_scree_plot")
+
+    def _get_selected_factor_count(self) -> int | None:
+        """Return the saved selected factor count."""
+        if self.state.project is None:
+            return None
+
+        factor_retention = self.state.project.settings.get("factor_retention")
+
+        if not isinstance(factor_retention, dict):
+            return None
+
+        value = factor_retention.get("selected_factor_count")
+
+        if value is None:
+            return None
+
+        try:
+            selected_factor_count = int(value)
+        except (TypeError, ValueError):
+            return None
+
+        if selected_factor_count < 1:
+            return None
+
+        return selected_factor_count
+
+    def _get_final_rotated_factor_pattern_path(self) -> Path | None:
+        """Return final rotated factor pattern path if it exists."""
+        return self._get_output_path("final_rotated_factor_pattern")
 
     def _update_window_title(self) -> None:
         """Update the main window title."""
