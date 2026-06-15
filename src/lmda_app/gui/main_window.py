@@ -226,6 +226,12 @@ class MainWindow(QMainWindow):
         self.communality_review_widget.reduced_matrix_created.connect(
             self._on_reduced_matrix_created
         )
+        self.communality_review_widget.reduced_correlation_matrix_computed.connect(
+            self._on_reduced_correlation_matrix_computed
+        )
+        self.communality_review_widget.reduced_eigen_analysis_computed.connect(
+            self._on_reduced_eigen_analysis_computed
+        )
 
     def _create_placeholder_widget(self) -> QWidget:
         """Create the placeholder content widget."""
@@ -405,6 +411,8 @@ class MainWindow(QMainWindow):
                 keyword_id_mapping_path=self._get_keyword_id_mapping_path(),
                 statistical_matrix_path=self._get_statistical_matrix_path(),
                 retained_variables_path=self._get_retained_variables_after_communality_path(),
+                reduced_statistical_matrix_path=self._get_reduced_statistical_matrix_path(),
+                reduced_correlation_matrix_path=self._get_reduced_correlation_matrix_path(),
             )
             return
 
@@ -446,7 +454,8 @@ class MainWindow(QMainWindow):
             ),
             "communality_review": (
                 "Review communalities, mark low-communality variables for exclusion, "
-                "and build the reduced statistical matrix for the next analysis iteration."
+                "build the reduced statistical matrix, then compute reduced correlation "
+                "and reduced eigen-analysis outputs."
             ),
             "final_analysis": (
                 "Run final factor extraction, promax rotation, factor scoring, and ANOVA."
@@ -552,6 +561,12 @@ class MainWindow(QMainWindow):
             self.state.set_stage_status("communality_review", WorkflowStageStatus.COMPLETE)
 
         if self._get_reduced_statistical_matrix_path() is not None:
+            self.state.set_stage_status("communality_review", WorkflowStageStatus.COMPLETE)
+
+        if self._get_reduced_correlation_matrix_path() is not None:
+            self.state.set_stage_status("communality_review", WorkflowStageStatus.COMPLETE)
+
+        if self._get_reduced_eigenvalues_path() is not None:
             self.state.set_stage_status("communality_review", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
@@ -666,18 +681,7 @@ class MainWindow(QMainWindow):
         }
 
         self.state.set_stage_status("corpus_import", WorkflowStageStatus.COMPLETE)
-
-        try:
-            save_project(self.state.project)
-        except ProjectIOError as exc:
-            QMessageBox.critical(
-                self,
-                "Could not save project",
-                str(exc),
-            )
-            self.log_message(f"Project save failed after corpus validation: {exc}")
-            return
-
+        self._save_project_after_stage("corpus validation")
         self._populate_workflow_navigation()
         self._select_stage_by_key("corpus_import")
 
@@ -713,18 +717,7 @@ class MainWindow(QMainWindow):
         }
 
         self.state.set_stage_status("nlp_settings", WorkflowStageStatus.COMPLETE)
-
-        try:
-            save_project(self.state.project)
-        except ProjectIOError as exc:
-            QMessageBox.critical(
-                self,
-                "Could not save project",
-                str(exc),
-            )
-            self.log_message(f"Project save failed after NLP processing: {exc}")
-            return
-
+        self._save_project_after_stage("NLP processing")
         self._populate_workflow_navigation()
         self._select_stage_by_key("nlp_settings")
 
@@ -760,17 +753,7 @@ class MainWindow(QMainWindow):
             "text_count": summary.text_count,
         }
 
-        try:
-            save_project(self.state.project)
-        except ProjectIOError as exc:
-            QMessageBox.critical(
-                self,
-                "Could not save project",
-                str(exc),
-            )
-            self.log_message(f"Project save failed after lemma presence generation: {exc}")
-            return
-
+        self._save_project_after_stage("lemma presence generation")
         self.log_message(f"Lemma presence written to: {lemma_presence_path}")
         self.log_message(
             "Lemma presence summary: "
@@ -802,18 +785,7 @@ class MainWindow(QMainWindow):
         }
 
         self.state.set_stage_status("keylemmas", WorkflowStageStatus.COMPLETE)
-
-        try:
-            save_project(self.state.project)
-        except ProjectIOError as exc:
-            QMessageBox.critical(
-                self,
-                "Could not save project",
-                str(exc),
-            )
-            self.log_message(f"Project save failed after key-lemma extraction: {exc}")
-            return
-
+        self._save_project_after_stage("key-lemma extraction")
         self._populate_workflow_navigation()
         self._select_stage_by_key("keylemmas")
 
@@ -846,18 +818,7 @@ class MainWindow(QMainWindow):
         }
 
         self.state.set_stage_status("candidate_review", WorkflowStageStatus.COMPLETE)
-
-        try:
-            save_project(self.state.project)
-        except ProjectIOError as exc:
-            QMessageBox.critical(
-                self,
-                "Could not save project",
-                str(exc),
-            )
-            self.log_message(f"Project save failed after candidate review: {exc}")
-            return
-
+        self._save_project_after_stage("candidate review")
         self._populate_workflow_navigation()
         self._select_stage_by_key("candidate_review")
 
@@ -893,18 +854,7 @@ class MainWindow(QMainWindow):
         }
 
         self.state.set_stage_status("keyword_selection", WorkflowStageStatus.COMPLETE)
-
-        try:
-            save_project(self.state.project)
-        except ProjectIOError as exc:
-            QMessageBox.critical(
-                self,
-                "Could not save project",
-                str(exc),
-            )
-            self.log_message(f"Project save failed after keyword selection: {exc}")
-            return
-
+        self._save_project_after_stage("keyword selection")
         self._populate_workflow_navigation()
         self._select_stage_by_key("keyword_selection")
 
@@ -939,18 +889,7 @@ class MainWindow(QMainWindow):
         }
 
         self.state.set_stage_status("matrix", WorkflowStageStatus.COMPLETE)
-
-        try:
-            save_project(self.state.project)
-        except ProjectIOError as exc:
-            QMessageBox.critical(
-                self,
-                "Could not save project",
-                str(exc),
-            )
-            self.log_message(f"Project save failed after matrix generation: {exc}")
-            return
-
+        self._save_project_after_stage("matrix generation")
         self._populate_workflow_navigation()
         self._select_stage_by_key("matrix")
 
@@ -989,18 +928,7 @@ class MainWindow(QMainWindow):
         }
 
         self.state.set_stage_status("initial_analysis", WorkflowStageStatus.COMPLETE)
-
-        try:
-            save_project(self.state.project)
-        except ProjectIOError as exc:
-            QMessageBox.critical(
-                self,
-                "Could not save project",
-                str(exc),
-            )
-            self.log_message(f"Project save failed after statistical input preparation: {exc}")
-            return
-
+        self._save_project_after_stage("statistical input preparation")
         self._populate_workflow_navigation()
         self._select_stage_by_key("initial_analysis")
 
@@ -1031,17 +959,7 @@ class MainWindow(QMainWindow):
             "development_backend": summary.method.value == "phi",
         }
 
-        try:
-            save_project(self.state.project)
-        except ProjectIOError as exc:
-            QMessageBox.critical(
-                self,
-                "Could not save project",
-                str(exc),
-            )
-            self.log_message(f"Project save failed after correlation computation: {exc}")
-            return
-
+        self._save_project_after_stage("correlation computation")
         self.log_message(f"Correlation matrix written to: {summary.output_matrix_path}")
         self.log_message(
             "Correlation summary: "
@@ -1072,18 +990,7 @@ class MainWindow(QMainWindow):
         }
 
         self.state.set_stage_status("initial_analysis", WorkflowStageStatus.COMPLETE)
-
-        try:
-            save_project(self.state.project)
-        except ProjectIOError as exc:
-            QMessageBox.critical(
-                self,
-                "Could not save project",
-                str(exc),
-            )
-            self.log_message(f"Project save failed after eigen-analysis: {exc}")
-            return
-
+        self._save_project_after_stage("eigen-analysis")
         self._populate_workflow_navigation()
         self._select_stage_by_key("initial_analysis")
 
@@ -1115,18 +1022,7 @@ class MainWindow(QMainWindow):
         }
 
         self.state.set_stage_status("factor_retention", WorkflowStageStatus.COMPLETE)
-
-        try:
-            save_project(self.state.project)
-        except ProjectIOError as exc:
-            QMessageBox.critical(
-                self,
-                "Could not save project",
-                str(exc),
-            )
-            self.log_message(f"Project save failed after factor retention: {exc}")
-            return
-
+        self._save_project_after_stage("factor retention")
         self._populate_workflow_navigation()
         self._select_stage_by_key("factor_retention")
 
@@ -1163,17 +1059,7 @@ class MainWindow(QMainWindow):
             "communality_mean": summary.communality_mean,
         }
 
-        try:
-            save_project(self.state.project)
-        except ProjectIOError as exc:
-            QMessageBox.critical(
-                self,
-                "Could not save project",
-                str(exc),
-            )
-            self.log_message(f"Project save failed after initial factor extraction: {exc}")
-            return
-
+        self._save_project_after_stage("initial factor extraction")
         self.log_message(f"Initial factor loadings written to: {summary.loadings_output_path}")
         self.log_message(f"Communalities written to: {summary.communalities_output_path}")
         self.log_message(
@@ -1208,18 +1094,7 @@ class MainWindow(QMainWindow):
         }
 
         self.state.set_stage_status("communality_review", WorkflowStageStatus.COMPLETE)
-
-        try:
-            save_project(self.state.project)
-        except ProjectIOError as exc:
-            QMessageBox.critical(
-                self,
-                "Could not save project",
-                str(exc),
-            )
-            self.log_message(f"Project save failed after communality review: {exc}")
-            return
-
+        self._save_project_after_stage("communality review")
         self._populate_workflow_navigation()
         self._select_stage_by_key("communality_review")
 
@@ -1252,16 +1127,7 @@ class MainWindow(QMainWindow):
             "retained_variables": str(summary.retained_variables_path),
         }
 
-        try:
-            save_project(self.state.project)
-        except ProjectIOError as exc:
-            QMessageBox.critical(
-                self,
-                "Could not save project",
-                str(exc),
-            )
-            self.log_message(f"Project save failed after reduced matrix generation: {exc}")
-            return
+        self._save_project_after_stage("reduced matrix generation")
 
         self.log_message(f"Reduced statistical matrix written to: {summary.reduced_matrix_path}")
         self.log_message(
@@ -1271,225 +1137,191 @@ class MainWindow(QMainWindow):
             f"{summary.observation_count} observations."
         )
 
-    def _get_text_id_mapping_path(self) -> Path | None:
-        """Return the text ID mapping path from the active project."""
+    def _on_reduced_correlation_matrix_computed(self, summary: CorrelationSummary) -> None:
+        """Handle successful reduced correlation matrix computation."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before computing reduced correlations.",
+            )
+            return
+
+        self.state.project.output_paths["reduced_correlation_matrix"] = str(
+            summary.output_matrix_path
+        )
+        self.state.project.settings["reduced_correlation"] = {
+            "method": summary.method.value,
+            "observation_count": summary.observation_count,
+            "variable_count": summary.variable_count,
+            "missing_values_replaced": summary.missing_values_replaced,
+            "development_backend": summary.method.value == "phi",
+        }
+
+        self._save_project_after_stage("reduced correlation computation")
+
+        self.log_message(
+            f"Reduced correlation matrix written to: {summary.output_matrix_path}"
+        )
+        self.log_message(
+            "Reduced correlation summary: "
+            f"{summary.variable_count} variables, "
+            f"{summary.observation_count} observations, "
+            f"{summary.missing_values_replaced} missing values replaced. "
+            "Backend: phi/Pearson development backend."
+        )
+
+    def _on_reduced_eigen_analysis_computed(self, summary: EigenAnalysisSummary) -> None:
+        """Handle successful reduced eigen-analysis computation."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before computing reduced eigen-analysis.",
+            )
+            return
+
+        self.state.project.output_paths["reduced_eigenvalues"] = str(
+            summary.eigenvalues_output_path
+        )
+        self.state.project.output_paths["reduced_scree_plot"] = str(summary.scree_output_path)
+        self.state.project.settings["reduced_eigen_analysis"] = {
+            "variable_count": summary.variable_count,
+            "component_count": summary.component_count,
+            "largest_eigenvalue": summary.largest_eigenvalue,
+            "smallest_eigenvalue": summary.smallest_eigenvalue,
+            "kaiser_component_count": summary.kaiser_component_count,
+            "negative_eigenvalue_count": summary.negative_eigenvalue_count,
+        }
+
+        self.state.set_stage_status("communality_review", WorkflowStageStatus.COMPLETE)
+        self._save_project_after_stage("reduced eigen-analysis")
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("communality_review")
+
+        self.log_message(f"Reduced eigenvalues written to: {summary.eigenvalues_output_path}")
+        self.log_message(f"Reduced scree data written to: {summary.scree_output_path}")
+        self.log_message(
+            "Reduced eigen-analysis summary: "
+            f"{summary.component_count} components, "
+            f"{summary.kaiser_component_count} eigenvalues > 1.0, "
+            f"{summary.negative_eigenvalue_count} negative eigenvalues."
+        )
+
+    def _save_project_after_stage(self, stage_description: str) -> bool:
+        """Save the project after a workflow update."""
+        if self.state.project is None:
+            return False
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after {stage_description}: {exc}")
+            return False
+
+        return True
+
+    def _get_output_path(self, key: str, *, must_exist: bool = True) -> Path | None:
+        """Return a project output path by key."""
         if self.state.project is None:
             return None
 
-        value = self.state.project.output_paths.get("text_id_mapping")
+        value = self.state.project.output_paths.get(key)
 
         if value is None:
             return None
 
-        return Path(value)
+        path = Path(value)
+
+        if must_exist and not path.exists():
+            return None
+
+        return path
+
+    def _get_text_id_mapping_path(self) -> Path | None:
+        """Return the text ID mapping path from the active project."""
+        return self._get_output_path("text_id_mapping", must_exist=False)
 
     def _get_processed_tokens_path(self) -> Path | None:
         """Return the processed tokens path from the active project if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("processed_tokens")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("processed_tokens")
 
     def _get_lemma_presence_path(self) -> Path | None:
         """Return the lemma presence path from the active project if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("lemma_presence")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("lemma_presence")
 
     def _get_keylemmas_path(self) -> Path | None:
         """Return the key-lemma output directory from the active project if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("keylemmas")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("keylemmas")
 
     def _get_candidate_keylemmas_path(self) -> Path | None:
         """Return the candidate key-lemma path from the active project if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("candidate_keylemmas")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("candidate_keylemmas")
 
     def _get_excluded_lemmas_path(self) -> Path | None:
         """Return the excluded lemmas path from the active project if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("excluded_lemmas")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("excluded_lemmas")
 
     def _get_final_keywords_path(self) -> Path | None:
         """Return the final keyword list path from the active project if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("final_keywords")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("final_keywords")
 
     def _get_binary_matrix_path(self) -> Path | None:
         """Return the binary matrix path from the active project if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("binary_matrix")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("binary_matrix")
 
     def _get_keyword_id_mapping_path(self) -> Path | None:
         """Return the keyword ID mapping path from the active project if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("keyword_id_mapping")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("keyword_id_mapping")
 
     def _get_statistical_matrix_path(self) -> Path | None:
         """Return the statistical matrix path from the active project if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("statistical_matrix")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("statistical_matrix")
 
     def _get_correlation_matrix_path(self) -> Path | None:
         """Return the correlation matrix path from the active project if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("correlation_matrix")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("correlation_matrix")
 
     def _get_eigenvalues_path(self) -> Path | None:
         """Return the eigenvalues path from the active project if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("eigenvalues")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("eigenvalues")
 
     def _get_scree_plot_path(self) -> Path | None:
         """Return the scree plot data path from the active project if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("scree_plot")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("scree_plot")
 
     def _get_initial_factor_loadings_path(self) -> Path | None:
         """Return the initial factor loadings path from the active project if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("initial_factor_loadings")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("initial_factor_loadings")
 
     def _get_communalities_path(self) -> Path | None:
         """Return the communalities path from the active project if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("communalities")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("communalities")
 
     def _get_retained_variables_after_communality_path(self) -> Path | None:
         """Return retained variables after communality review if it exists."""
-        if self.state.project is None:
-            return None
-
-        value = self.state.project.output_paths.get("retained_variables_after_communality")
-
-        if value is None:
-            return None
-
-        path = Path(value)
-        return path if path.exists() else None
+        return self._get_output_path("retained_variables_after_communality")
 
     def _get_reduced_statistical_matrix_path(self) -> Path | None:
         """Return reduced statistical matrix path if it exists."""
-        if self.state.project is None:
-            return None
+        return self._get_output_path("reduced_statistical_matrix")
 
-        value = self.state.project.output_paths.get("reduced_statistical_matrix")
+    def _get_reduced_correlation_matrix_path(self) -> Path | None:
+        """Return reduced correlation matrix path if it exists."""
+        return self._get_output_path("reduced_correlation_matrix")
 
-        if value is None:
-            return None
+    def _get_reduced_eigenvalues_path(self) -> Path | None:
+        """Return reduced eigenvalues path if it exists."""
+        return self._get_output_path("reduced_eigenvalues")
 
-        path = Path(value)
-        return path if path.exists() else None
+    def _get_reduced_scree_plot_path(self) -> Path | None:
+        """Return reduced scree plot data path if it exists."""
+        return self._get_output_path("reduced_scree_plot")
 
     def _update_window_title(self) -> None:
         """Update the main window title."""

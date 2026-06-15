@@ -24,6 +24,17 @@ from lmda_app.statistics.communality_review import (
     build_communality_review,
     write_communality_review_outputs,
 )
+from lmda_app.statistics.correlation import (
+    CorrelationError,
+    CorrelationMethod,
+    CorrelationSummary,
+    compute_correlation_matrix,
+)
+from lmda_app.statistics.eigen_analysis import (
+    EigenAnalysisError,
+    EigenAnalysisSummary,
+    compute_eigen_analysis,
+)
 from lmda_app.statistics.reduced_matrix import (
     ReducedMatrixError,
     ReducedMatrixSummary,
@@ -36,6 +47,8 @@ class CommunalityReviewWidget(QWidget):
 
     communality_review_saved = Signal(CommunalityReviewSummary)
     reduced_matrix_created = Signal(ReducedMatrixSummary)
+    reduced_correlation_matrix_computed = Signal(CorrelationSummary)
+    reduced_eigen_analysis_computed = Signal(EigenAnalysisSummary)
 
     def __init__(self, parent=None) -> None:  # noqa: ANN001
         super().__init__(parent)
@@ -45,6 +58,8 @@ class CommunalityReviewWidget(QWidget):
         self.keyword_id_mapping_path: Path | None = None
         self.statistical_matrix_path: Path | None = None
         self.retained_variables_path: Path | None = None
+        self.reduced_statistical_matrix_path: Path | None = None
+        self.reduced_correlation_matrix_path: Path | None = None
         self.rows: list[CommunalityReviewRow] = []
 
         self.threshold_spin = QDoubleSpinBox()
@@ -52,6 +67,12 @@ class CommunalityReviewWidget(QWidget):
         self.apply_threshold_button = QPushButton("Apply Threshold")
         self.save_button = QPushButton("Save Communality Review")
         self.build_reduced_matrix_button = QPushButton("Build Reduced Statistical Matrix")
+        self.compute_reduced_correlation_button = QPushButton(
+            "Compute Reduced Correlation Matrix"
+        )
+        self.compute_reduced_eigen_analysis_button = QPushButton(
+            "Compute Reduced Eigenvalues / Scree Data"
+        )
 
         self.table = QTableWidget(0, 5)
         self.summary_text = QTextEdit()
@@ -68,7 +89,8 @@ class CommunalityReviewWidget(QWidget):
             "Review initial communalities and identify variables that are weakly "
             "represented by the retained factor solution. Variables below the threshold "
             "are marked for exclusion in the next analysis iteration. After saving the "
-            "communality review, build a reduced statistical matrix from the retained variables."
+            "communality review, build a reduced statistical matrix from the retained "
+            "variables, then compute reduced correlation and reduced eigen-analysis outputs."
         )
         intro.setWordWrap(True)
 
@@ -81,6 +103,12 @@ class CommunalityReviewWidget(QWidget):
         self.apply_threshold_button.clicked.connect(self._apply_threshold)
         self.save_button.clicked.connect(self._save_review)
         self.build_reduced_matrix_button.clicked.connect(self._build_reduced_matrix)
+        self.compute_reduced_correlation_button.clicked.connect(
+            self._compute_reduced_correlation_matrix
+        )
+        self.compute_reduced_eigen_analysis_button.clicked.connect(
+            self._compute_reduced_eigen_analysis
+        )
 
         settings_group = QGroupBox("Communality threshold")
         settings_layout = QFormLayout(settings_group)
@@ -105,6 +133,8 @@ class CommunalityReviewWidget(QWidget):
         root_layout.addWidget(table_group, stretch=3)
         root_layout.addWidget(self.save_button)
         root_layout.addWidget(self.build_reduced_matrix_button)
+        root_layout.addWidget(self.compute_reduced_correlation_button)
+        root_layout.addWidget(self.compute_reduced_eigen_analysis_button)
         root_layout.addWidget(summary_group, stretch=1)
 
     def set_project_context(
@@ -114,6 +144,8 @@ class CommunalityReviewWidget(QWidget):
         keyword_id_mapping_path: Path | None,
         statistical_matrix_path: Path | None = None,
         retained_variables_path: Path | None = None,
+        reduced_statistical_matrix_path: Path | None = None,
+        reduced_correlation_matrix_path: Path | None = None,
     ) -> None:
         """Set project context for communality review."""
         self.project_directory = project_directory
@@ -121,6 +153,8 @@ class CommunalityReviewWidget(QWidget):
         self.keyword_id_mapping_path = keyword_id_mapping_path
         self.statistical_matrix_path = statistical_matrix_path
         self.retained_variables_path = retained_variables_path
+        self.reduced_statistical_matrix_path = reduced_statistical_matrix_path
+        self.reduced_correlation_matrix_path = reduced_correlation_matrix_path
 
     def _load_communalities(self) -> None:
         """Load communalities and populate table."""
@@ -218,8 +252,92 @@ class CommunalityReviewWidget(QWidget):
             )
             return
 
+        self.reduced_statistical_matrix_path = summary.reduced_matrix_path
         self._display_reduced_matrix_summary(summary)
         self.reduced_matrix_created.emit(summary)
+
+    def _compute_reduced_correlation_matrix(self) -> None:
+        """Compute correlation matrix from the reduced statistical matrix."""
+        if self.project_directory is None:
+            QMessageBox.warning(
+                self,
+                "No project",
+                "Create or open a project before computing reduced correlations.",
+            )
+            return
+
+        if (
+                self.reduced_statistical_matrix_path is None
+                or not self.reduced_statistical_matrix_path.exists()
+        ):
+            QMessageBox.warning(
+                self,
+                "Missing reduced statistical matrix",
+                "Build the reduced statistical matrix before computing reduced correlations.",
+            )
+            return
+
+        output_directory = self.project_directory / "statistics"
+
+        try:
+            summary = compute_correlation_matrix(
+                statistical_matrix_path=self.reduced_statistical_matrix_path,
+                output_directory=output_directory,
+                method=CorrelationMethod.PHI,
+                output_filename="reduced_correlation_matrix.tsv",
+            )
+        except (OSError, CorrelationError) as exc:
+            QMessageBox.critical(
+                self,
+                "Could not compute reduced correlation matrix",
+                str(exc),
+            )
+            return
+
+        self.reduced_correlation_matrix_path = summary.output_matrix_path
+        self._display_reduced_correlation_summary(summary)
+        self.reduced_correlation_matrix_computed.emit(summary)
+
+    def _compute_reduced_eigen_analysis(self) -> None:
+        """Compute eigenvalues and scree data from the reduced correlation matrix."""
+        if self.project_directory is None:
+            QMessageBox.warning(
+                self,
+                "No project",
+                "Create or open a project before computing reduced eigen-analysis.",
+            )
+            return
+
+        if (
+                self.reduced_correlation_matrix_path is None
+                or not self.reduced_correlation_matrix_path.exists()
+        ):
+            QMessageBox.warning(
+                self,
+                "Missing reduced correlation matrix",
+                "Compute the reduced correlation matrix before reduced eigen-analysis.",
+            )
+            return
+
+        output_directory = self.project_directory / "statistics"
+
+        try:
+            summary = compute_eigen_analysis(
+                correlation_matrix_path=self.reduced_correlation_matrix_path,
+                output_directory=output_directory,
+                eigenvalues_filename="reduced_eigenvalues.tsv",
+                scree_filename="reduced_scree_plot.tsv",
+            )
+        except (OSError, EigenAnalysisError, ValueError) as exc:
+            QMessageBox.critical(
+                self,
+                "Could not compute reduced eigen-analysis",
+                str(exc),
+            )
+            return
+
+        self._display_reduced_eigen_analysis_summary(summary)
+        self.reduced_eigen_analysis_computed.emit(summary)
 
     def _build_rows(self) -> None:
         """Build review rows from current files and threshold."""
@@ -319,6 +437,47 @@ class CommunalityReviewWidget(QWidget):
             f"Removed variables: {summary.removed_variable_count}",
             "",
             "This reduced matrix should be used for the next analysis iteration.",
+        ]
+
+        self.summary_text.setPlainText("\n".join(lines))
+
+    def _display_reduced_correlation_summary(self, summary: CorrelationSummary) -> None:
+        """Display reduced correlation summary."""
+        lines = [
+            "Reduced correlation matrix computed",
+            "",
+            "Method: phi/Pearson development backend",
+            f"Input matrix: {summary.input_matrix_path}",
+            f"Output matrix: {summary.output_matrix_path}",
+            "",
+            f"Observations: {summary.observation_count}",
+            f"Variables: {summary.variable_count}",
+            f"Missing correlations replaced: {summary.missing_values_replaced}",
+            "",
+            "Note: this is still the temporary phi/Pearson development backend. "
+            "The final target remains tetrachoric/polychoric correlation.",
+        ]
+
+        self.summary_text.setPlainText("\n".join(lines))
+
+    def _display_reduced_eigen_analysis_summary(self, summary: EigenAnalysisSummary) -> None:
+        """Display reduced eigen-analysis summary."""
+        lines = [
+            "Reduced eigen-analysis complete",
+            "",
+            f"Input reduced correlation matrix: {summary.input_correlation_path}",
+            f"Reduced eigenvalues: {summary.eigenvalues_output_path}",
+            f"Reduced scree data: {summary.scree_output_path}",
+            "",
+            f"Variables: {summary.variable_count}",
+            f"Components: {summary.component_count}",
+            f"Largest eigenvalue: {summary.largest_eigenvalue:.6f}",
+            f"Smallest eigenvalue: {summary.smallest_eigenvalue:.6f}",
+            f"Components with eigenvalue > 1.0: {summary.kaiser_component_count}",
+            f"Negative eigenvalues: {summary.negative_eigenvalue_count}",
+            "",
+            "These outputs begin the reduced-variable analysis iteration after "
+            "communality filtering.",
         ]
 
         self.summary_text.setPlainText("\n".join(lines))

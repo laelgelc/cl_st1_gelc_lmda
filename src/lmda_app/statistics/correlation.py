@@ -33,15 +33,17 @@ class CorrelationError(RuntimeError):
 
 
 def compute_correlation_matrix(
-    statistical_matrix_path: Path,
-    output_directory: Path,
-    method: CorrelationMethod = CorrelationMethod.PHI,
+        statistical_matrix_path: Path,
+        output_directory: Path,
+        method: CorrelationMethod = CorrelationMethod.PHI,
+        output_filename: str = "correlation_matrix.tsv",
 ) -> CorrelationSummary:
     """Compute a correlation matrix for the statistical keyword matrix."""
     if method == CorrelationMethod.PHI:
         return _compute_phi_correlation_matrix(
             statistical_matrix_path=statistical_matrix_path,
             output_directory=output_directory,
+            output_filename=output_filename,
         )
 
     if method == CorrelationMethod.TETRACHORIC:
@@ -56,12 +58,13 @@ def compute_correlation_matrix(
 
 
 def _compute_phi_correlation_matrix(
-    statistical_matrix_path: Path,
-    output_directory: Path,
+        statistical_matrix_path: Path,
+        output_directory: Path,
+        output_filename: str = "correlation_matrix.tsv",
 ) -> CorrelationSummary:
     """Compute Pearson/phi correlation for binary keyword variables."""
     output_directory.mkdir(parents=True, exist_ok=True)
-    output_matrix_path = output_directory / "correlation_matrix.tsv"
+    output_matrix_path = output_directory / output_filename
 
     data = pd.read_csv(statistical_matrix_path, sep="\t")
 

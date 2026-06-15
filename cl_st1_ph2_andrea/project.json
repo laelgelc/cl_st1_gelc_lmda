@@ -2,7 +2,7 @@
   "name": "cl_st1_ph2_andrea",
   "directory": "cl_st1_ph2_andrea",
   "created_at": "2026-06-12T19:24:06",
-  "updated_at": "2026-06-15T16:23:31",
+  "updated_at": "2026-06-15T17:09:26",
   "corpus_directory": "/home/eyamrog/PycharmProjects/cl_st1_andrea/cl_st1_ph2_andrea/corpus/commercial_verbal",
   "settings": {
     "corpus_validation": {
@@ -106,6 +106,21 @@
       "observation_count": 822,
       "source_matrix": "cl_st1_ph2_andrea/statistics/statistical_matrix.tsv",
       "retained_variables": "cl_st1_ph2_andrea/statistics/retained_variables_after_communality.tsv"
+    },
+    "reduced_correlation": {
+      "method": "phi",
+      "observation_count": 822,
+      "variable_count": 32,
+      "missing_values_replaced": 0,
+      "development_backend": true
+    },
+    "reduced_eigen_analysis": {
+      "variable_count": 32,
+      "component_count": 32,
+      "largest_eigenvalue": 3.4340400179874537,
+      "smallest_eigenvalue": 0.1386912323320808,
+      "kaiser_component_count": 10,
+      "negative_eigenvalue_count": 0
     }
   },
   "output_paths": {
@@ -132,6 +147,9 @@
     "communality_review": "cl_st1_ph2_andrea/statistics/communality_review.tsv",
     "low_communality_variables": "cl_st1_ph2_andrea/statistics/low_communality_variables.tsv",
     "retained_variables_after_communality": "cl_st1_ph2_andrea/statistics/retained_variables_after_communality.tsv",
-    "reduced_statistical_matrix": "cl_st1_ph2_andrea/statistics/reduced_statistical_matrix.tsv"
+    "reduced_statistical_matrix": "cl_st1_ph2_andrea/statistics/reduced_statistical_matrix.tsv",
+    "reduced_correlation_matrix": "cl_st1_ph2_andrea/statistics/reduced_correlation_matrix.tsv",
+    "reduced_eigenvalues": "cl_st1_ph2_andrea/statistics/reduced_eigenvalues.tsv",
+    "reduced_scree_plot": "cl_st1_ph2_andrea/statistics/reduced_scree_plot.tsv"
   }
 }

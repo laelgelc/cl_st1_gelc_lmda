@@ -28,14 +28,16 @@ class EigenAnalysisError(RuntimeError):
 
 
 def compute_eigen_analysis(
-        correlation_matrix_path: Path,
-        output_directory: Path,
+    correlation_matrix_path: Path,
+    output_directory: Path,
+    eigenvalues_filename: str = "eigenvalues.tsv",
+    scree_filename: str = "scree_plot.tsv",
 ) -> EigenAnalysisSummary:
     """Compute eigenvalues and scree data from a correlation matrix."""
     output_directory.mkdir(parents=True, exist_ok=True)
 
-    eigenvalues_output_path = output_directory / "eigenvalues.tsv"
-    scree_output_path = output_directory / "scree_plot.tsv"
+    eigenvalues_output_path = output_directory / eigenvalues_filename
+    scree_output_path = output_directory / scree_filename
 
     correlation = _read_correlation_matrix(correlation_matrix_path)
     _validate_correlation_matrix(correlation)
