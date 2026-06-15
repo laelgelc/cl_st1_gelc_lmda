@@ -45,6 +45,7 @@ from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
 from lmda_app.nlp.processed_tokens import ProcessingSummary
 from lmda_app.statistics.correlation import CorrelationSummary
 from lmda_app.statistics.eigen_analysis import EigenAnalysisSummary
+from lmda_app.statistics.initial_factor_extraction import InitialFactorExtractionSummary
 from lmda_app.statistics.matrix_input import StatisticalInputSummary
 
 
@@ -205,6 +206,9 @@ class MainWindow(QMainWindow):
         )
         self.factor_retention_widget.factor_retention_saved.connect(
             self._on_factor_retention_saved
+        )
+        self.factor_retention_widget.initial_factor_extraction_computed.connect(
+            self._on_initial_factor_extraction_computed
         )
 
     def _create_placeholder_widget(self) -> QWidget:
@@ -369,6 +373,7 @@ class MainWindow(QMainWindow):
                 project_directory=self.state.project_directory,
                 eigenvalues_path=self._get_eigenvalues_path(),
                 scree_plot_path=self._get_scree_plot_path(),
+                correlation_matrix_path=self._get_correlation_matrix_path(),
             )
             return
 
@@ -405,7 +410,8 @@ class MainWindow(QMainWindow):
                 "phi/Pearson development backend."
             ),
             "factor_retention": (
-                "Review the scree plot and select the number of factors to extract."
+                "Review the scree plot, select the number of factors to extract, "
+                "and run initial factor extraction with communalities."
             ),
             "final_analysis": (
                 "Run final factor extraction, promax rotation, factor scoring, and ANOVA."
@@ -502,6 +508,9 @@ class MainWindow(QMainWindow):
             self.state.set_stage_status("initial_analysis", WorkflowStageStatus.COMPLETE)
 
         if self.state.project.settings.get("factor_retention") is not None:
+            self.state.set_stage_status("factor_retention", WorkflowStageStatus.COMPLETE)
+
+        if self._get_initial_factor_loadings_path() is not None:
             self.state.set_stage_status("factor_retention", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
@@ -1087,6 +1096,54 @@ class MainWindow(QMainWindow):
             f"{summary.selected_factor_count} factors selected by visual scree plot."
         )
 
+    def _on_initial_factor_extraction_computed(
+            self,
+            summary: InitialFactorExtractionSummary,
+    ) -> None:
+        """Handle completed initial factor extraction."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before running initial factor extraction.",
+            )
+            return
+
+        self.state.project.output_paths["initial_factor_loadings"] = str(
+            summary.loadings_output_path
+        )
+        self.state.project.output_paths["communalities"] = str(
+            summary.communalities_output_path
+        )
+        self.state.project.settings["initial_factor_extraction"] = {
+            "method": summary.method,
+            "selected_factor_count": summary.selected_factor_count,
+            "variable_count": summary.variable_count,
+            "communality_min": summary.communality_min,
+            "communality_max": summary.communality_max,
+            "communality_mean": summary.communality_mean,
+        }
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after initial factor extraction: {exc}")
+            return
+
+        self.log_message(f"Initial factor loadings written to: {summary.loadings_output_path}")
+        self.log_message(f"Communalities written to: {summary.communalities_output_path}")
+        self.log_message(
+            "Initial factor extraction summary: "
+            f"{summary.selected_factor_count} factors, "
+            f"{summary.variable_count} variables, "
+            f"mean communality {summary.communality_mean:.6f}."
+        )
+
     def _get_text_id_mapping_path(self) -> Path | None:
         """Return the text ID mapping path from the active project."""
         if self.state.project is None:
@@ -1235,6 +1292,32 @@ class MainWindow(QMainWindow):
             return None
 
         value = self.state.project.output_paths.get("scree_plot")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_initial_factor_loadings_path(self) -> Path | None:
+        """Return the initial factor loadings path from the active project if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("initial_factor_loadings")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_communalities_path(self) -> Path | None:
+        """Return the communalities path from the active project if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("communalities")
 
         if value is None:
             return None

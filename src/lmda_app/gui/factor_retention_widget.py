@@ -20,6 +20,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from lmda_app.statistics.initial_factor_extraction import (
+    InitialFactorExtractionError,
+    InitialFactorExtractionSummary,
+    compute_initial_factor_extraction,
+)
+
 
 @dataclass(slots=True)
 class FactorRetentionSummary:
@@ -29,6 +35,7 @@ class FactorRetentionSummary:
     selection_method: str
     eigenvalues_path: Path
     scree_plot_path: Path
+    correlation_matrix_path: Path | None
     eigenvalue_greater_than_one_count: int
     component_count: int
 
@@ -45,6 +52,7 @@ class FactorRetentionWidget(QWidget):
     """Widget for reviewing the scree plot and selecting factor count."""
 
     factor_retention_saved = Signal(FactorRetentionSummary)
+    initial_factor_extraction_computed = Signal(InitialFactorExtractionSummary)
 
     def __init__(self, parent=None) -> None:  # noqa: ANN001
         super().__init__(parent)
@@ -52,11 +60,13 @@ class FactorRetentionWidget(QWidget):
         self.project_directory: Path | None = None
         self.eigenvalues_path: Path | None = None
         self.scree_plot_path: Path | None = None
+        self.correlation_matrix_path: Path | None = None
         self.scree_points: list[ScreePoint] = []
 
         self.load_button = QPushButton("Load Scree Plot")
         self.regenerate_chart_button = QPushButton("Regenerate Chart")
         self.save_button = QPushButton("Save Factor Retention Decision")
+        self.run_extraction_button = QPushButton("Run Initial Factor Extraction")
         self.factor_count_spin = QSpinBox()
         self.maximum_components_slider = QSlider(Qt.Orientation.Horizontal)
         self.maximum_components_label = QLabel("Maximum components shown: 20")
@@ -76,7 +86,8 @@ class FactorRetentionWidget(QWidget):
         intro = QLabel(
             "Review the scree plot and visually select the number of factors to extract. "
             "The Kaiser rule is shown only as contextual information; this workflow uses "
-            "visual scree-plot inspection for factor retention."
+            "visual scree-plot inspection for factor retention. After saving the decision, "
+            "run the initial unrotated factor extraction and communality calculation."
         )
         intro.setWordWrap(True)
 
@@ -95,6 +106,7 @@ class FactorRetentionWidget(QWidget):
         self.load_button.clicked.connect(self._load_scree_plot)
         self.regenerate_chart_button.clicked.connect(self._redraw_chart)
         self.save_button.clicked.connect(self._save_factor_retention)
+        self.run_extraction_button.clicked.connect(self._run_initial_factor_extraction)
 
         settings_group = QGroupBox("Factor-retention decision")
         settings_layout = QFormLayout(settings_group)
@@ -120,6 +132,7 @@ class FactorRetentionWidget(QWidget):
         root_layout.addWidget(display_group)
         root_layout.addWidget(chart_group, stretch=3)
         root_layout.addWidget(self.save_button)
+        root_layout.addWidget(self.run_extraction_button)
         root_layout.addWidget(summary_group, stretch=1)
 
     def set_project_context(
@@ -127,11 +140,13 @@ class FactorRetentionWidget(QWidget):
         project_directory: Path | None,
         eigenvalues_path: Path | None,
         scree_plot_path: Path | None,
+        correlation_matrix_path: Path | None = None,
     ) -> None:
         """Set project context for factor-retention review."""
         self.project_directory = project_directory
         self.eigenvalues_path = eigenvalues_path
         self.scree_plot_path = scree_plot_path
+        self.correlation_matrix_path = correlation_matrix_path
 
     def _load_scree_plot(self) -> None:
         """Load scree plot data and display chart."""
@@ -244,12 +259,51 @@ class FactorRetentionWidget(QWidget):
             selection_method="visual_scree_plot",
             eigenvalues_path=self.eigenvalues_path,
             scree_plot_path=self.scree_plot_path,
+            correlation_matrix_path=self.correlation_matrix_path,
             eigenvalue_greater_than_one_count=eigenvalue_greater_than_one_count,
             component_count=len(self.scree_points),
         )
 
         self._display_saved_summary(summary)
         self.factor_retention_saved.emit(summary)
+
+    def _run_initial_factor_extraction(self) -> None:
+        """Run initial factor extraction and communality calculation."""
+        if self.project_directory is None:
+            QMessageBox.warning(
+                self,
+                "No project",
+                "Create or open a project before running initial factor extraction.",
+            )
+            return
+
+        if self.correlation_matrix_path is None or not self.correlation_matrix_path.exists():
+            QMessageBox.warning(
+                self,
+                "Missing correlation matrix",
+                "Compute the correlation matrix before running initial factor extraction.",
+            )
+            return
+
+        factor_count = self.factor_count_spin.value()
+        output_directory = self.project_directory / "statistics"
+
+        try:
+            summary = compute_initial_factor_extraction(
+                correlation_matrix_path=self.correlation_matrix_path,
+                output_directory=output_directory,
+                factor_count=factor_count,
+            )
+        except (OSError, ValueError, InitialFactorExtractionError) as exc:
+            QMessageBox.critical(
+                self,
+                "Could not run initial factor extraction",
+                str(exc),
+            )
+            return
+
+        self._display_initial_factor_extraction_summary(summary)
+        self.initial_factor_extraction_computed.emit(summary)
 
     def _redraw_chart(self) -> None:
         """Draw or redraw the scree plot."""
@@ -363,9 +417,36 @@ class FactorRetentionWidget(QWidget):
             "",
             f"Eigenvalues: {summary.eigenvalues_path}",
             f"Scree data: {summary.scree_plot_path}",
+            f"Correlation matrix: {summary.correlation_matrix_path}",
             "",
             f"Components: {summary.component_count}",
             f"Eigenvalues greater than 1.0: {summary.eigenvalue_greater_than_one_count}",
+        ]
+
+        self.summary_text.setPlainText("\n".join(lines))
+
+    def _display_initial_factor_extraction_summary(
+            self,
+            summary: InitialFactorExtractionSummary,
+    ) -> None:
+        """Display initial factor extraction summary."""
+        lines = [
+            "Initial factor extraction complete",
+            "",
+            f"Method: {summary.method}",
+            f"Selected factors: {summary.selected_factor_count}",
+            "",
+            f"Correlation matrix: {summary.correlation_matrix_path}",
+            f"Initial factor loadings: {summary.loadings_output_path}",
+            f"Communalities: {summary.communalities_output_path}",
+            "",
+            f"Variables: {summary.variable_count}",
+            f"Minimum communality: {summary.communality_min:.6f}",
+            f"Maximum communality: {summary.communality_max:.6f}",
+            f"Mean communality: {summary.communality_mean:.6f}",
+            "",
+            "These are initial unrotated loadings from the current correlation matrix. "
+            "They are not the final rotated factor solution.",
         ]
 
         self.summary_text.setPlainText("\n".join(lines))
