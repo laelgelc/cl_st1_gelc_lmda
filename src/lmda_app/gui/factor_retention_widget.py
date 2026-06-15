@@ -6,13 +6,14 @@ from pathlib import Path
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QFormLayout,
     QGroupBox,
     QLabel,
     QMessageBox,
     QPushButton,
+    QSlider,
     QSpinBox,
     QTextEdit,
     QVBoxLayout,
@@ -54,8 +55,11 @@ class FactorRetentionWidget(QWidget):
         self.scree_points: list[ScreePoint] = []
 
         self.load_button = QPushButton("Load Scree Plot")
+        self.regenerate_chart_button = QPushButton("Regenerate Chart")
         self.save_button = QPushButton("Save Factor Retention Decision")
         self.factor_count_spin = QSpinBox()
+        self.maximum_components_slider = QSlider(Qt.Orientation.Horizontal)
+        self.maximum_components_label = QLabel("Maximum components shown: 20")
         self.summary_text = QTextEdit()
 
         self.figure = Figure(figsize=(7, 4))
@@ -80,12 +84,27 @@ class FactorRetentionWidget(QWidget):
         self.factor_count_spin.setValue(1)
         self.factor_count_spin.valueChanged.connect(self._redraw_chart)
 
+        self.maximum_components_slider.setRange(5, 20)
+        self.maximum_components_slider.setValue(20)
+        self.maximum_components_slider.setTickInterval(5)
+        self.maximum_components_slider.setSingleStep(1)
+        self.maximum_components_slider.valueChanged.connect(
+            self._update_maximum_components_label
+        )
+
         self.load_button.clicked.connect(self._load_scree_plot)
+        self.regenerate_chart_button.clicked.connect(self._redraw_chart)
         self.save_button.clicked.connect(self._save_factor_retention)
 
         settings_group = QGroupBox("Factor-retention decision")
         settings_layout = QFormLayout(settings_group)
         settings_layout.addRow("Number of factors to extract:", self.factor_count_spin)
+
+        display_group = QGroupBox("Scree plot display settings")
+        display_layout = QVBoxLayout(display_group)
+        display_layout.addWidget(self.maximum_components_label)
+        display_layout.addWidget(self.maximum_components_slider)
+        display_layout.addWidget(self.regenerate_chart_button)
 
         chart_group = QGroupBox("Scree plot")
         chart_layout = QVBoxLayout(chart_group)
@@ -98,6 +117,7 @@ class FactorRetentionWidget(QWidget):
         root_layout.addWidget(intro)
         root_layout.addWidget(self.load_button)
         root_layout.addWidget(settings_group)
+        root_layout.addWidget(display_group)
         root_layout.addWidget(chart_group, stretch=3)
         root_layout.addWidget(self.save_button)
         root_layout.addWidget(summary_group, stretch=1)
@@ -158,8 +178,14 @@ class FactorRetentionWidget(QWidget):
             return
 
         component_count = len(self.scree_points)
+        default_maximum_components = min(20, component_count)
+
         self.factor_count_spin.setRange(1, component_count)
         self.factor_count_spin.setValue(min(self.factor_count_spin.value(), component_count))
+
+        self.maximum_components_slider.setRange(5, component_count)
+        self.maximum_components_slider.setValue(default_maximum_components)
+        self._update_maximum_components_label(default_maximum_components)
 
         self._redraw_chart()
         self._display_loaded_summary()
@@ -245,11 +271,18 @@ class FactorRetentionWidget(QWidget):
             self.canvas.draw()
             return
 
-        components = [point.component for point in self.scree_points]
-        eigenvalues = [point.eigenvalue for point in self.scree_points]
+        maximum_components = self.maximum_components_slider.value()
+        visible_points = [
+            point
+            for point in self.scree_points
+            if point.component <= maximum_components
+        ]
+
+        components = [point.component for point in visible_points]
+        eigenvalues = [point.eigenvalue for point in visible_points]
         selected_factor_count = self.factor_count_spin.value()
 
-        axes.plot(components, eigenvalues, marker="o", markersize=3, linewidth=1)
+        axes.plot(components, eigenvalues, marker="o", markersize=4, linewidth=1)
         axes.axhline(
             y=1.0,
             color="gray",
@@ -257,34 +290,41 @@ class FactorRetentionWidget(QWidget):
             linewidth=1,
             label="Eigenvalue = 1.0",
         )
-        axes.axvline(
-            x=selected_factor_count,
-            color="red",
-            linestyle="--",
-            linewidth=1,
-            label=f"Selected factors = {selected_factor_count}",
-        )
 
-        axes.set_title("Scree plot")
+        if selected_factor_count <= maximum_components:
+            axes.axvline(
+                x=selected_factor_count,
+                color="red",
+                linestyle="--",
+                linewidth=1,
+                label=f"Selected factors = {selected_factor_count}",
+            )
+
+        axes.set_title(f"Scree plot: first {maximum_components} components")
         axes.set_xlabel("Component")
         axes.set_ylabel("Eigenvalue")
         axes.legend(loc="best")
         axes.grid(True, alpha=0.3)
 
-        # The first part of the scree plot is usually where the decision is made.
-        # Showing all components remains possible because the full line is plotted,
-        # but the x-axis is capped to improve readability for large matrices.
-        if len(components) > 50:
-            axes.set_xlim(1, 50)
+        if components:
+            axes.set_xlim(1, maximum_components)
 
         self.figure.tight_layout()
         self.canvas.draw()
+
+        self._display_loaded_summary()
+
+    def _update_maximum_components_label(self, value: int) -> None:
+        """Update maximum-components label."""
+        self.maximum_components_label.setText(f"Maximum components shown: {value}")
 
     def _display_loaded_summary(self) -> None:
         """Display summary after loading scree data."""
         eigenvalue_greater_than_one_count = _count_eigenvalues_greater_than_one(
             self.eigenvalues_path
         )
+        maximum_components = self.maximum_components_slider.value()
+        selected_factor_count = self.factor_count_spin.value()
 
         lines = [
             "Scree plot loaded",
@@ -293,12 +333,23 @@ class FactorRetentionWidget(QWidget):
             f"Scree data: {self.scree_plot_path}",
             "",
             f"Components: {len(self.scree_points)}",
+            f"Components currently shown: {maximum_components}",
             f"Eigenvalues greater than 1.0: {eigenvalue_greater_than_one_count}",
-            f"Current selected factors: {self.factor_count_spin.value()}",
+            f"Current selected factors: {selected_factor_count}",
             "",
             "Note: the eigenvalue > 1.0 count is shown for reference only. "
             "Use the scree plot to visually select the retained factor count.",
         ]
+
+        if selected_factor_count > maximum_components:
+            lines.extend(
+                [
+                    "",
+                    "Warning: the selected factor count is outside the currently visible "
+                    "plot range. Increase 'Maximum components shown' to display the "
+                    "selection marker.",
+                ]
+            )
 
         self.summary_text.setPlainText("\n".join(lines))
 
