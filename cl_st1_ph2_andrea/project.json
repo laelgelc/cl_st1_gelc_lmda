@@ -2,7 +2,7 @@
   "name": "cl_st1_ph2_andrea",
   "directory": "cl_st1_ph2_andrea",
   "created_at": "2026-06-12T19:24:06",
-  "updated_at": "2026-06-15T15:12:10",
+  "updated_at": "2026-06-15T16:01:07",
   "corpus_directory": "/home/eyamrog/PycharmProjects/cl_st1_andrea/cl_st1_ph2_andrea/corpus/commercial_verbal",
   "settings": {
     "corpus_validation": {
@@ -92,6 +92,12 @@
       "communality_min": 0.001724116566253397,
       "communality_max": 0.6413366702096607,
       "communality_mean": 0.07651257004909344
+    },
+    "communality_review": {
+      "threshold": 0.15,
+      "variable_count": 277,
+      "excluded_variable_count": 245,
+      "retained_variable_count": 32
     }
   },
   "output_paths": {
@@ -114,6 +120,9 @@
     "eigenvalues": "cl_st1_ph2_andrea/statistics/eigenvalues.tsv",
     "scree_plot": "cl_st1_ph2_andrea/statistics/scree_plot.tsv",
     "initial_factor_loadings": "cl_st1_ph2_andrea/statistics/initial_factor_loadings.tsv",
-    "communalities": "cl_st1_ph2_andrea/statistics/communalities.tsv"
+    "communalities": "cl_st1_ph2_andrea/statistics/communalities.tsv",
+    "communality_review": "cl_st1_ph2_andrea/statistics/communality_review.tsv",
+    "low_communality_variables": "cl_st1_ph2_andrea/statistics/low_communality_variables.tsv",
+    "retained_variables_after_communality": "cl_st1_ph2_andrea/statistics/retained_variables_after_communality.tsv"
   }
 }

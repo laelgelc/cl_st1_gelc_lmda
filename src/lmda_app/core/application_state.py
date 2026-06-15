@@ -56,6 +56,7 @@ class ApplicationState:
                 WorkflowStage("matrix", "Matrix"),
                 WorkflowStage("initial_analysis", "Initial Analysis"),
                 WorkflowStage("factor_retention", "Factor Retention"),
+                WorkflowStage("communality_review", "Communality Review"),
                 WorkflowStage("final_analysis", "Final Analysis"),
                 WorkflowStage("results", "Results"),
                 WorkflowStage("export", "Export"),

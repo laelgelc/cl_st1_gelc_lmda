@@ -34,6 +34,10 @@ from lmda_app.features.keylemmas import KeyLemmaSummary
 from lmda_app.features.keyword_selection import KeywordSelectionSummary
 from lmda_app.features.lemma_presence import LemmaPresenceSummary
 from lmda_app.gui.candidate_review_widget import CandidateReviewWidget
+from lmda_app.gui.communality_review_widget import (
+    CommunalityReviewSummary,
+    CommunalityReviewWidget,
+)
 from lmda_app.gui.corpus_import_widget import CorpusImportWidget
 from lmda_app.gui.factor_retention_widget import FactorRetentionSummary, FactorRetentionWidget
 from lmda_app.gui.initial_analysis_widget import InitialAnalysisWidget
@@ -68,6 +72,7 @@ class MainWindow(QMainWindow):
         self.matrix_widget = MatrixWidget()
         self.initial_analysis_widget = InitialAnalysisWidget()
         self.factor_retention_widget = FactorRetentionWidget()
+        self.communality_review_widget = CommunalityReviewWidget()
         self.log_view = QPlainTextEdit()
         self.status_label = QLabel("Ready")
 
@@ -133,6 +138,9 @@ class MainWindow(QMainWindow):
         factor_retention_action = workflow_menu.addAction("Factor Retention")
         factor_retention_action.triggered.connect(self._select_factor_retention_stage)
 
+        communality_review_action = workflow_menu.addAction("Communality Review")
+        communality_review_action.triggered.connect(self._select_communality_review_stage)
+
         run_final_analysis_action = workflow_menu.addAction("Run Final Analysis")
         run_final_analysis_action.triggered.connect(self._show_not_implemented)
 
@@ -167,6 +175,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.matrix_widget)
         self.content_stack.addWidget(self.initial_analysis_widget)
         self.content_stack.addWidget(self.factor_retention_widget)
+        self.content_stack.addWidget(self.communality_review_widget)
 
         main_splitter.addWidget(self.content_stack)
         main_splitter.setStretchFactor(0, 0)
@@ -209,6 +218,9 @@ class MainWindow(QMainWindow):
         )
         self.factor_retention_widget.initial_factor_extraction_computed.connect(
             self._on_initial_factor_extraction_computed
+        )
+        self.communality_review_widget.communality_review_saved.connect(
+            self._on_communality_review_saved
         )
 
     def _create_placeholder_widget(self) -> QWidget:
@@ -296,6 +308,10 @@ class MainWindow(QMainWindow):
         """Select the Factor Retention workflow stage."""
         self._select_stage_by_key("factor_retention")
 
+    def _select_communality_review_stage(self) -> None:
+        """Select the Communality Review workflow stage."""
+        self._select_stage_by_key("communality_review")
+
     def _on_workflow_stage_changed(self, row: int) -> None:
         """Update the central content when the selected workflow stage changes."""
         if row < 0:
@@ -377,6 +393,15 @@ class MainWindow(QMainWindow):
             )
             return
 
+        if stage.key == "communality_review":
+            self.content_stack.setCurrentWidget(self.communality_review_widget)
+            self.communality_review_widget.set_project_context(
+                project_directory=self.state.project_directory,
+                communalities_path=self._get_communalities_path(),
+                keyword_id_mapping_path=self._get_keyword_id_mapping_path(),
+            )
+            return
+
         self.content_stack.setCurrentWidget(self.placeholder_widget)
         self.content_title.setText(stage.label)
         self.content_body.setText(self._placeholder_text_for_stage(stage.key))
@@ -412,6 +437,10 @@ class MainWindow(QMainWindow):
             "factor_retention": (
                 "Review the scree plot, select the number of factors to extract, "
                 "and run initial factor extraction with communalities."
+            ),
+            "communality_review": (
+                "Review communalities and mark low-communality variables for exclusion "
+                "before the next analysis iteration."
             ),
             "final_analysis": (
                 "Run final factor extraction, promax rotation, factor scoring, and ANOVA."
@@ -512,6 +541,9 @@ class MainWindow(QMainWindow):
 
         if self._get_initial_factor_loadings_path() is not None:
             self.state.set_stage_status("factor_retention", WorkflowStageStatus.COMPLETE)
+
+        if self.state.project.settings.get("communality_review") is not None:
+            self.state.set_stage_status("communality_review", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
         self._select_stage_by_key("project_setup")
@@ -797,9 +829,7 @@ class MainWindow(QMainWindow):
         self.state.project.output_paths["candidate_keylemmas"] = str(
             summary.candidate_output_path
         )
-        self.state.project.output_paths["excluded_lemmas"] = str(
-            summary.exclusion_output_path
-        )
+        self.state.project.output_paths["excluded_lemmas"] = str(summary.exclusion_output_path)
         self.state.project.settings["candidate_review"] = {
             "candidate_count": summary.candidate_count,
             "excluded_count": summary.excluded_count,
@@ -1144,6 +1174,53 @@ class MainWindow(QMainWindow):
             f"mean communality {summary.communality_mean:.6f}."
         )
 
+    def _on_communality_review_saved(self, summary: CommunalityReviewSummary) -> None:
+        """Handle saved communality review."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before saving communality review.",
+            )
+            return
+
+        self.state.project.output_paths["communality_review"] = str(summary.review_output_path)
+        self.state.project.output_paths["low_communality_variables"] = str(
+            summary.excluded_variables_path
+        )
+        self.state.project.output_paths["retained_variables_after_communality"] = str(
+            summary.retained_variables_path
+        )
+        self.state.project.settings["communality_review"] = {
+            "threshold": summary.threshold,
+            "variable_count": summary.variable_count,
+            "excluded_variable_count": summary.excluded_variable_count,
+            "retained_variable_count": summary.retained_variable_count,
+        }
+
+        self.state.set_stage_status("communality_review", WorkflowStageStatus.COMPLETE)
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after communality review: {exc}")
+            return
+
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("communality_review")
+
+        self.log_message(f"Communality review written to: {summary.review_output_path}")
+        self.log_message(
+            "Communality review summary: "
+            f"{summary.excluded_variable_count} excluded, "
+            f"{summary.retained_variable_count} retained."
+        )
+
     def _get_text_id_mapping_path(self) -> Path | None:
         """Return the text ID mapping path from the active project."""
         if self.state.project is None:
@@ -1240,6 +1317,19 @@ class MainWindow(QMainWindow):
             return None
 
         value = self.state.project.output_paths.get("binary_matrix")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_keyword_id_mapping_path(self) -> Path | None:
+        """Return the keyword ID mapping path from the active project if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("keyword_id_mapping")
 
         if value is None:
             return None
