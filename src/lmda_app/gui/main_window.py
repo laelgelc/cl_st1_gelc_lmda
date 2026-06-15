@@ -35,6 +35,7 @@ from lmda_app.features.keyword_selection import KeywordSelectionSummary
 from lmda_app.features.lemma_presence import LemmaPresenceSummary
 from lmda_app.gui.candidate_review_widget import CandidateReviewWidget
 from lmda_app.gui.corpus_import_widget import CorpusImportWidget
+from lmda_app.gui.factor_retention_widget import FactorRetentionSummary, FactorRetentionWidget
 from lmda_app.gui.initial_analysis_widget import InitialAnalysisWidget
 from lmda_app.gui.keylemma_widget import KeyLemmaWidget
 from lmda_app.gui.keyword_selection_widget import KeywordSelectionWidget
@@ -65,6 +66,7 @@ class MainWindow(QMainWindow):
         self.keyword_selection_widget = KeywordSelectionWidget()
         self.matrix_widget = MatrixWidget()
         self.initial_analysis_widget = InitialAnalysisWidget()
+        self.factor_retention_widget = FactorRetentionWidget()
         self.log_view = QPlainTextEdit()
         self.status_label = QLabel("Ready")
 
@@ -127,6 +129,9 @@ class MainWindow(QMainWindow):
         run_initial_analysis_action = workflow_menu.addAction("Run Initial Analysis")
         run_initial_analysis_action.triggered.connect(self._select_initial_analysis_stage)
 
+        factor_retention_action = workflow_menu.addAction("Factor Retention")
+        factor_retention_action.triggered.connect(self._select_factor_retention_stage)
+
         run_final_analysis_action = workflow_menu.addAction("Run Final Analysis")
         run_final_analysis_action.triggered.connect(self._show_not_implemented)
 
@@ -160,6 +165,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.keyword_selection_widget)
         self.content_stack.addWidget(self.matrix_widget)
         self.content_stack.addWidget(self.initial_analysis_widget)
+        self.content_stack.addWidget(self.factor_retention_widget)
 
         main_splitter.addWidget(self.content_stack)
         main_splitter.setStretchFactor(0, 0)
@@ -196,6 +202,9 @@ class MainWindow(QMainWindow):
         )
         self.initial_analysis_widget.eigen_analysis_computed.connect(
             self._on_eigen_analysis_computed
+        )
+        self.factor_retention_widget.factor_retention_saved.connect(
+            self._on_factor_retention_saved
         )
 
     def _create_placeholder_widget(self) -> QWidget:
@@ -279,6 +288,10 @@ class MainWindow(QMainWindow):
         """Select the Initial Analysis workflow stage."""
         self._select_stage_by_key("initial_analysis")
 
+    def _select_factor_retention_stage(self) -> None:
+        """Select the Factor Retention workflow stage."""
+        self._select_stage_by_key("factor_retention")
+
     def _on_workflow_stage_changed(self, row: int) -> None:
         """Update the central content when the selected workflow stage changes."""
         if row < 0:
@@ -347,6 +360,15 @@ class MainWindow(QMainWindow):
                 binary_matrix_path=self._get_binary_matrix_path(),
                 statistical_matrix_path=self._get_statistical_matrix_path(),
                 correlation_matrix_path=self._get_correlation_matrix_path(),
+            )
+            return
+
+        if stage.key == "factor_retention":
+            self.content_stack.setCurrentWidget(self.factor_retention_widget)
+            self.factor_retention_widget.set_project_context(
+                project_directory=self.state.project_directory,
+                eigenvalues_path=self._get_eigenvalues_path(),
+                scree_plot_path=self._get_scree_plot_path(),
             )
             return
 
@@ -478,6 +500,9 @@ class MainWindow(QMainWindow):
 
         if self._get_eigenvalues_path() is not None:
             self.state.set_stage_status("initial_analysis", WorkflowStageStatus.COMPLETE)
+
+        if self.state.project.settings.get("factor_retention") is not None:
+            self.state.set_stage_status("factor_retention", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
         self._select_stage_by_key("project_setup")
@@ -1021,6 +1046,45 @@ class MainWindow(QMainWindow):
             f"{summary.component_count} components, "
             f"{summary.kaiser_component_count} eigenvalues > 1.0, "
             f"{summary.negative_eigenvalue_count} negative eigenvalues."
+        )
+
+    def _on_factor_retention_saved(self, summary: FactorRetentionSummary) -> None:
+        """Handle saved factor-retention decision."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before saving factor retention.",
+            )
+            return
+
+        self.state.project.settings["factor_retention"] = {
+            "selected_factor_count": summary.selected_factor_count,
+            "selection_method": summary.selection_method,
+            "eigenvalue_greater_than_one_count": summary.eigenvalue_greater_than_one_count,
+            "component_count": summary.component_count,
+            "notes": "Selected by visual inspection of scree plot.",
+        }
+
+        self.state.set_stage_status("factor_retention", WorkflowStageStatus.COMPLETE)
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after factor retention: {exc}")
+            return
+
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("factor_retention")
+
+        self.log_message(
+            "Factor-retention decision saved: "
+            f"{summary.selected_factor_count} factors selected by visual scree plot."
         )
 
     def _get_text_id_mapping_path(self) -> Path | None:
