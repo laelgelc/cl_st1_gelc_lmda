@@ -20,11 +20,18 @@ from lmda_app.statistics.final_factor_analysis import (
     compute_final_factor_analysis,
 )
 
+from lmda_app.statistics.loading_assignment import (
+    DEFAULT_LOADING_CUTOFF,
+    LoadingAssignmentError,
+    LoadingAssignmentSummary,
+    assign_factor_loadings,
+)
 
 class FinalAnalysisWidget(QWidget):
     """Widget for running final factor analysis."""
 
     final_factor_analysis_computed = Signal(FinalFactorAnalysisSummary)
+    loading_assignment_computed = Signal(LoadingAssignmentSummary)
 
     def __init__(self, parent=None) -> None:  # noqa: ANN001
         super().__init__(parent)
@@ -32,8 +39,10 @@ class FinalAnalysisWidget(QWidget):
         self.project_directory: Path | None = None
         self.reduced_correlation_matrix_path: Path | None = None
         self.selected_factor_count: int | None = None
+        self.final_rotated_factor_pattern_path: Path | None = None
 
         self.run_button = QPushButton("Run Final Factor Analysis")
+        self.assign_loadings_button = QPushButton("Assign Factor Poles")
         self.progress_bar = QProgressBar()
         self.progress_label = QLabel("Ready")
         self.summary_text = QTextEdit()
@@ -61,6 +70,7 @@ class FinalAnalysisWidget(QWidget):
         warning.setWordWrap(True)
 
         self.run_button.clicked.connect(self._run_final_factor_analysis)
+        self.assign_loadings_button.clicked.connect(self._assign_factor_poles)
 
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
@@ -72,20 +82,23 @@ class FinalAnalysisWidget(QWidget):
         root_layout.addWidget(intro)
         root_layout.addWidget(warning)
         root_layout.addWidget(self.run_button)
+        root_layout.addWidget(self.assign_loadings_button)
         root_layout.addWidget(self.progress_label)
         root_layout.addWidget(self.progress_bar)
         root_layout.addWidget(summary_group, stretch=1)
 
     def set_project_context(
-            self,
-            project_directory: Path | None,
-            reduced_correlation_matrix_path: Path | None,
-            selected_factor_count: int | None,
+        self,
+        project_directory: Path | None,
+        reduced_correlation_matrix_path: Path | None,
+        selected_factor_count: int | None,
+        final_rotated_factor_pattern_path: Path | None = None,
     ) -> None:
         """Set project context for final factor analysis."""
         self.project_directory = project_directory
         self.reduced_correlation_matrix_path = reduced_correlation_matrix_path
         self.selected_factor_count = selected_factor_count
+        self.final_rotated_factor_pattern_path = final_rotated_factor_pattern_path
 
     def _run_final_factor_analysis(self) -> None:
         """Run final factor analysis."""
@@ -139,9 +152,60 @@ class FinalAnalysisWidget(QWidget):
             )
             return
 
+        self.final_rotated_factor_pattern_path = summary.rotated_pattern_output_path
+
         self._set_processing_ui("Final factor analysis complete", is_processing=False)
         self._display_summary(summary)
         self.final_factor_analysis_computed.emit(summary)
+
+    def _assign_factor_poles(self) -> None:
+        """Assign variables to factor poles from the final rotated pattern."""
+        if self.project_directory is None:
+            QMessageBox.warning(
+                self,
+                "No project",
+                "Create or open a project before assigning factor poles.",
+            )
+            return
+
+        if (
+            self.final_rotated_factor_pattern_path is None
+            or not self.final_rotated_factor_pattern_path.exists()
+        ):
+            QMessageBox.warning(
+                self,
+                "Missing rotated factor pattern",
+                "Run final factor analysis before assigning factor poles.",
+            )
+            return
+
+        output_directory = self.project_directory / "statistics"
+
+        self._set_processing_ui("Assigning factor poles...", is_processing=True)
+
+        try:
+            summary = assign_factor_loadings(
+                rotated_pattern_path=self.final_rotated_factor_pattern_path,
+                output_directory=output_directory,
+                loading_cutoff=DEFAULT_LOADING_CUTOFF,
+                development_backend_source=True,
+            )
+        except (OSError, LoadingAssignmentError) as exc:
+            self._set_processing_ui(
+                "Factor pole assignment failed",
+                is_processing=False,
+                complete=False,
+            )
+            QMessageBox.critical(
+                self,
+                "Could not assign factor poles",
+                str(exc),
+            )
+            return
+
+        self._set_processing_ui("Factor pole assignment complete", is_processing=False)
+        self._display_loading_assignment_summary(summary)
+        self.loading_assignment_computed.emit(summary)
 
     def _set_processing_ui(
             self,
@@ -187,6 +251,36 @@ class FinalAnalysisWidget(QWidget):
             ),
             "",
             "These outputs are labelled as development-stage final factor results.",
+        ]
+
+        self.summary_text.setPlainText("\n".join(lines))
+
+    def _display_loading_assignment_summary(
+        self,
+        summary: LoadingAssignmentSummary,
+    ) -> None:
+        """Display factor loading assignment summary."""
+        lines = [
+            "Factor pole assignment complete",
+            "",
+            "Development backend source: yes"
+            if summary.development_backend_source
+            else "Development backend source: no",
+            f"Loading cutoff: {summary.loading_cutoff:.2f}",
+            "",
+            f"Factors: {summary.factor_count}",
+            f"Variables: {summary.variable_count}",
+            f"Assigned variables: {summary.assigned_variable_count}",
+            f"Unloaded variables: {summary.unloaded_variable_count}",
+            f"Positive-pole assignments: {summary.positive_pole_count}",
+            f"Negative-pole assignments: {summary.negative_pole_count}",
+            "",
+            f"Rotated factor pattern: {summary.rotated_pattern_path}",
+            f"Assignment table: {summary.assignment_output_path}",
+            f"Loading lists: {summary.loading_lists_output_path}",
+            f"Summary: {summary.summary_output_path}",
+            "",
+            "These assignments are downstream of the current development final-analysis backend.",
         ]
 
         self.summary_text.setPlainText("\n".join(lines))

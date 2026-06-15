@@ -52,6 +52,7 @@ from lmda_app.statistics.correlation import CorrelationSummary
 from lmda_app.statistics.eigen_analysis import EigenAnalysisSummary
 from lmda_app.statistics.final_factor_analysis import FinalFactorAnalysisSummary
 from lmda_app.statistics.initial_factor_extraction import InitialFactorExtractionSummary
+from lmda_app.statistics.loading_assignment import LoadingAssignmentSummary
 from lmda_app.statistics.matrix_input import StatisticalInputSummary
 from lmda_app.statistics.reduced_matrix import ReducedMatrixSummary
 
@@ -238,6 +239,9 @@ class MainWindow(QMainWindow):
         )
         self.final_analysis_widget.final_factor_analysis_computed.connect(
             self._on_final_factor_analysis_computed
+        )
+        self.final_analysis_widget.loading_assignment_computed.connect(
+            self._on_loading_assignment_computed
         )
 
     def _create_placeholder_widget(self) -> QWidget:
@@ -433,6 +437,9 @@ class MainWindow(QMainWindow):
                 project_directory=self.state.project_directory,
                 reduced_correlation_matrix_path=self._get_reduced_correlation_matrix_path(),
                 selected_factor_count=self._get_selected_factor_count(),
+                final_rotated_factor_pattern_path=(
+                    self._get_final_rotated_factor_pattern_path()
+                ),
             )
             return
 
@@ -592,6 +599,9 @@ class MainWindow(QMainWindow):
             self.state.set_stage_status("communality_review", WorkflowStageStatus.COMPLETE)
 
         if self._get_final_rotated_factor_pattern_path() is not None:
+            self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
+
+        if self._get_factor_pole_assignments_path() is not None:
             self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
@@ -1295,6 +1305,58 @@ class MainWindow(QMainWindow):
             "Backend: development."
         )
 
+    def _on_loading_assignment_computed(
+            self,
+            summary: LoadingAssignmentSummary,
+    ) -> None:
+        """Handle completed loading assignment."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before assigning factor poles.",
+            )
+            return
+
+        self.state.project.output_paths["factor_pole_assignments"] = str(
+            summary.assignment_output_path
+        )
+        self.state.project.output_paths["factor_pole_loading_lists"] = str(
+            summary.loading_lists_output_path
+        )
+        self.state.project.output_paths["loading_assignment_summary"] = str(
+            summary.summary_output_path
+        )
+        self.state.project.settings["loading_assignment"] = {
+            "loading_cutoff": summary.loading_cutoff,
+            "factor_count": summary.factor_count,
+            "variable_count": summary.variable_count,
+            "assigned_variable_count": summary.assigned_variable_count,
+            "unloaded_variable_count": summary.unloaded_variable_count,
+            "positive_pole_count": summary.positive_pole_count,
+            "negative_pole_count": summary.negative_pole_count,
+            "development_backend_source": summary.development_backend_source,
+        }
+
+        self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
+        self._save_project_after_stage("loading assignment")
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("final_analysis")
+
+        self.log_message(
+            f"Factor/pole assignments written to: {summary.assignment_output_path}"
+        )
+        self.log_message(
+            f"Factor/pole loading lists written to: {summary.loading_lists_output_path}"
+        )
+        self.log_message(
+            "Loading assignment summary: "
+            f"{summary.assigned_variable_count} assigned, "
+            f"{summary.unloaded_variable_count} unloaded, "
+            f"cutoff {summary.loading_cutoff:.2f}. "
+            "Source backend: development."
+        )
+
     def _save_project_after_stage(self, stage_description: str) -> bool:
         """Save the project after a workflow update."""
         if self.state.project is None:
@@ -1438,6 +1500,10 @@ class MainWindow(QMainWindow):
     def _get_final_rotated_factor_pattern_path(self) -> Path | None:
         """Return final rotated factor pattern path if it exists."""
         return self._get_output_path("final_rotated_factor_pattern")
+
+    def _get_factor_pole_assignments_path(self) -> Path | None:
+        """Return factor/pole assignments path if it exists."""
+        return self._get_output_path("factor_pole_assignments")
 
     def _update_window_title(self) -> None:
         """Update the main window title."""
