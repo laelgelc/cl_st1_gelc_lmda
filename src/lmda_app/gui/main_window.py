@@ -51,6 +51,7 @@ from lmda_app.statistics.correlation import CorrelationSummary
 from lmda_app.statistics.eigen_analysis import EigenAnalysisSummary
 from lmda_app.statistics.initial_factor_extraction import InitialFactorExtractionSummary
 from lmda_app.statistics.matrix_input import StatisticalInputSummary
+from lmda_app.statistics.reduced_matrix import ReducedMatrixSummary
 
 
 class MainWindow(QMainWindow):
@@ -221,6 +222,9 @@ class MainWindow(QMainWindow):
         )
         self.communality_review_widget.communality_review_saved.connect(
             self._on_communality_review_saved
+        )
+        self.communality_review_widget.reduced_matrix_created.connect(
+            self._on_reduced_matrix_created
         )
 
     def _create_placeholder_widget(self) -> QWidget:
@@ -399,6 +403,8 @@ class MainWindow(QMainWindow):
                 project_directory=self.state.project_directory,
                 communalities_path=self._get_communalities_path(),
                 keyword_id_mapping_path=self._get_keyword_id_mapping_path(),
+                statistical_matrix_path=self._get_statistical_matrix_path(),
+                retained_variables_path=self._get_retained_variables_after_communality_path(),
             )
             return
 
@@ -439,8 +445,8 @@ class MainWindow(QMainWindow):
                 "and run initial factor extraction with communalities."
             ),
             "communality_review": (
-                "Review communalities and mark low-communality variables for exclusion "
-                "before the next analysis iteration."
+                "Review communalities, mark low-communality variables for exclusion, "
+                "and build the reduced statistical matrix for the next analysis iteration."
             ),
             "final_analysis": (
                 "Run final factor extraction, promax rotation, factor scoring, and ANOVA."
@@ -543,6 +549,9 @@ class MainWindow(QMainWindow):
             self.state.set_stage_status("factor_retention", WorkflowStageStatus.COMPLETE)
 
         if self.state.project.settings.get("communality_review") is not None:
+            self.state.set_stage_status("communality_review", WorkflowStageStatus.COMPLETE)
+
+        if self._get_reduced_statistical_matrix_path() is not None:
             self.state.set_stage_status("communality_review", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
@@ -1221,6 +1230,47 @@ class MainWindow(QMainWindow):
             f"{summary.retained_variable_count} retained."
         )
 
+    def _on_reduced_matrix_created(self, summary: ReducedMatrixSummary) -> None:
+        """Handle successful reduced statistical matrix generation."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before building a reduced matrix.",
+            )
+            return
+
+        self.state.project.output_paths["reduced_statistical_matrix"] = str(
+            summary.reduced_matrix_path
+        )
+        self.state.project.settings["reduced_variable_matrix"] = {
+            "source_variable_count": summary.source_variable_count,
+            "retained_variable_count": summary.retained_variable_count,
+            "removed_variable_count": summary.removed_variable_count,
+            "observation_count": summary.observation_count,
+            "source_matrix": str(summary.source_matrix_path),
+            "retained_variables": str(summary.retained_variables_path),
+        }
+
+        try:
+            save_project(self.state.project)
+        except ProjectIOError as exc:
+            QMessageBox.critical(
+                self,
+                "Could not save project",
+                str(exc),
+            )
+            self.log_message(f"Project save failed after reduced matrix generation: {exc}")
+            return
+
+        self.log_message(f"Reduced statistical matrix written to: {summary.reduced_matrix_path}")
+        self.log_message(
+            "Reduced matrix summary: "
+            f"{summary.retained_variable_count} retained variables, "
+            f"{summary.removed_variable_count} removed variables, "
+            f"{summary.observation_count} observations."
+        )
+
     def _get_text_id_mapping_path(self) -> Path | None:
         """Return the text ID mapping path from the active project."""
         if self.state.project is None:
@@ -1408,6 +1458,32 @@ class MainWindow(QMainWindow):
             return None
 
         value = self.state.project.output_paths.get("communalities")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_retained_variables_after_communality_path(self) -> Path | None:
+        """Return retained variables after communality review if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("retained_variables_after_communality")
+
+        if value is None:
+            return None
+
+        path = Path(value)
+        return path if path.exists() else None
+
+    def _get_reduced_statistical_matrix_path(self) -> Path | None:
+        """Return reduced statistical matrix path if it exists."""
+        if self.state.project is None:
+            return None
+
+        value = self.state.project.output_paths.get("reduced_statistical_matrix")
 
         if value is None:
             return None

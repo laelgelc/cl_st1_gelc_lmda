@@ -24,12 +24,18 @@ from lmda_app.statistics.communality_review import (
     build_communality_review,
     write_communality_review_outputs,
 )
+from lmda_app.statistics.reduced_matrix import (
+    ReducedMatrixError,
+    ReducedMatrixSummary,
+    build_reduced_statistical_matrix,
+)
 
 
 class CommunalityReviewWidget(QWidget):
     """Widget for reviewing communalities and identifying low-communality variables."""
 
     communality_review_saved = Signal(CommunalityReviewSummary)
+    reduced_matrix_created = Signal(ReducedMatrixSummary)
 
     def __init__(self, parent=None) -> None:  # noqa: ANN001
         super().__init__(parent)
@@ -37,12 +43,15 @@ class CommunalityReviewWidget(QWidget):
         self.project_directory: Path | None = None
         self.communalities_path: Path | None = None
         self.keyword_id_mapping_path: Path | None = None
+        self.statistical_matrix_path: Path | None = None
+        self.retained_variables_path: Path | None = None
         self.rows: list[CommunalityReviewRow] = []
 
         self.threshold_spin = QDoubleSpinBox()
         self.load_button = QPushButton("Load Communalities")
         self.apply_threshold_button = QPushButton("Apply Threshold")
         self.save_button = QPushButton("Save Communality Review")
+        self.build_reduced_matrix_button = QPushButton("Build Reduced Statistical Matrix")
 
         self.table = QTableWidget(0, 5)
         self.summary_text = QTextEdit()
@@ -58,7 +67,8 @@ class CommunalityReviewWidget(QWidget):
         intro = QLabel(
             "Review initial communalities and identify variables that are weakly "
             "represented by the retained factor solution. Variables below the threshold "
-            "are marked for exclusion in the next analysis iteration."
+            "are marked for exclusion in the next analysis iteration. After saving the "
+            "communality review, build a reduced statistical matrix from the retained variables."
         )
         intro.setWordWrap(True)
 
@@ -70,6 +80,7 @@ class CommunalityReviewWidget(QWidget):
         self.load_button.clicked.connect(self._load_communalities)
         self.apply_threshold_button.clicked.connect(self._apply_threshold)
         self.save_button.clicked.connect(self._save_review)
+        self.build_reduced_matrix_button.clicked.connect(self._build_reduced_matrix)
 
         settings_group = QGroupBox("Communality threshold")
         settings_layout = QFormLayout(settings_group)
@@ -93,6 +104,7 @@ class CommunalityReviewWidget(QWidget):
         root_layout.addWidget(self.apply_threshold_button)
         root_layout.addWidget(table_group, stretch=3)
         root_layout.addWidget(self.save_button)
+        root_layout.addWidget(self.build_reduced_matrix_button)
         root_layout.addWidget(summary_group, stretch=1)
 
     def set_project_context(
@@ -100,11 +112,15 @@ class CommunalityReviewWidget(QWidget):
         project_directory: Path | None,
         communalities_path: Path | None,
         keyword_id_mapping_path: Path | None,
+        statistical_matrix_path: Path | None = None,
+        retained_variables_path: Path | None = None,
     ) -> None:
         """Set project context for communality review."""
         self.project_directory = project_directory
         self.communalities_path = communalities_path
         self.keyword_id_mapping_path = keyword_id_mapping_path
+        self.statistical_matrix_path = statistical_matrix_path
+        self.retained_variables_path = retained_variables_path
 
     def _load_communalities(self) -> None:
         """Load communalities and populate table."""
@@ -131,6 +147,14 @@ class CommunalityReviewWidget(QWidget):
         if not self.rows:
             self._build_rows()
 
+        if not self.rows:
+            QMessageBox.warning(
+                self,
+                "No review rows",
+                "Load communalities before saving communality review.",
+            )
+            return
+
         output_directory = self.project_directory / "statistics"
 
         try:
@@ -147,8 +171,55 @@ class CommunalityReviewWidget(QWidget):
             )
             return
 
+        self.retained_variables_path = summary.retained_variables_path
+
         self._display_saved_summary(summary)
         self.communality_review_saved.emit(summary)
+
+    def _build_reduced_matrix(self) -> None:
+        """Build reduced statistical matrix from retained variables."""
+        if self.project_directory is None:
+            QMessageBox.warning(
+                self,
+                "No project",
+                "Create or open a project before building a reduced matrix.",
+            )
+            return
+
+        if self.statistical_matrix_path is None or not self.statistical_matrix_path.exists():
+            QMessageBox.warning(
+                self,
+                "Missing statistical matrix",
+                "Prepare statistical input before building a reduced matrix.",
+            )
+            return
+
+        if self.retained_variables_path is None or not self.retained_variables_path.exists():
+            QMessageBox.warning(
+                self,
+                "Missing retained variables",
+                "Save the communality review before building a reduced matrix.",
+            )
+            return
+
+        output_directory = self.project_directory / "statistics"
+
+        try:
+            summary = build_reduced_statistical_matrix(
+                statistical_matrix_path=self.statistical_matrix_path,
+                retained_variables_path=self.retained_variables_path,
+                output_directory=output_directory,
+            )
+        except (OSError, ValueError, ReducedMatrixError) as exc:
+            QMessageBox.critical(
+                self,
+                "Could not build reduced matrix",
+                str(exc),
+            )
+            return
+
+        self._display_reduced_matrix_summary(summary)
+        self.reduced_matrix_created.emit(summary)
 
     def _build_rows(self) -> None:
         """Build review rows from current files and threshold."""
@@ -227,6 +298,27 @@ class CommunalityReviewWidget(QWidget):
             f"Variables: {summary.variable_count}",
             f"Excluded variables: {summary.excluded_variable_count}",
             f"Retained variables: {summary.retained_variable_count}",
+            "",
+            "You can now build the reduced statistical matrix.",
+        ]
+
+        self.summary_text.setPlainText("\n".join(lines))
+
+    def _display_reduced_matrix_summary(self, summary: ReducedMatrixSummary) -> None:
+        """Display reduced matrix summary."""
+        lines = [
+            "Reduced statistical matrix created",
+            "",
+            f"Source matrix: {summary.source_matrix_path}",
+            f"Retained variables: {summary.retained_variables_path}",
+            f"Reduced matrix: {summary.reduced_matrix_path}",
+            "",
+            f"Observations: {summary.observation_count}",
+            f"Source variables: {summary.source_variable_count}",
+            f"Retained variables: {summary.retained_variable_count}",
+            f"Removed variables: {summary.removed_variable_count}",
+            "",
+            "This reduced matrix should be used for the next analysis iteration.",
         ]
 
         self.summary_text.setPlainText("\n".join(lines))
