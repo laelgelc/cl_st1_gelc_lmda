@@ -3,10 +3,10 @@ rotated_pattern_path	cl_st1_ph2_andrea/statistics/final_rotated_factor_pattern.t
 assignment_output_path	cl_st1_ph2_andrea/statistics/factor_pole_assignments.tsv
 loading_lists_output_path	cl_st1_ph2_andrea/statistics/factor_pole_loading_lists.tsv
 loading_cutoff	0.3000000000
-factor_count	5
-variable_count	32
-assigned_variable_count	29
-unloaded_variable_count	3
-positive_pole_count	13
-negative_pole_count	16
+factor_count	4
+variable_count	197
+assigned_variable_count	38
+unloaded_variable_count	159
+positive_pole_count	9
+negative_pole_count	29
 development_backend_source	true
