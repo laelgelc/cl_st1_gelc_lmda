@@ -57,7 +57,7 @@ def compute_anova_and_group_means(
         msg = "Factor scores file contains no factor score columns."
         raise AnovaError(msg)
 
-    groups = sorted(data[group_variable].astype(str).unique().tolist())
+    groups = sorted(data[group_variable].unique().tolist())
 
     if len(groups) < 2:
         msg = "ANOVA requires at least two groups."
@@ -197,7 +197,7 @@ def _read_factor_scores(factor_scores_path: Path) -> pd.DataFrame:
 def _read_metadata(metadata_path: Path, group_variable: str) -> pd.DataFrame:
     """Read statistical matrix metadata TSV."""
     try:
-        data = pd.read_csv(metadata_path, sep="\t")
+        data = pd.read_csv(metadata_path, sep="\t", dtype={"text_id": str, group_variable: str})
     except OSError as exc:
         msg = f"Could not read statistical metadata: {metadata_path}"
         raise AnovaError(msg) from exc
@@ -215,7 +215,11 @@ def _read_metadata(metadata_path: Path, group_variable: str) -> pd.DataFrame:
         msg = "Metadata file is empty."
         raise AnovaError(msg)
 
-    return data[["text_id", group_variable]].copy()
+    data = data[["text_id", group_variable]].copy()
+    data["text_id"] = data["text_id"].astype(str)
+    data[group_variable] = data[group_variable].astype(str)
+
+    return data
 
 
 def _merge_scores_and_metadata(
@@ -224,12 +228,21 @@ def _merge_scores_and_metadata(
     group_variable: str,
 ) -> pd.DataFrame:
     """Merge factor scores with text metadata."""
+    scores = scores.copy()
+    metadata = metadata.copy()
+
+    scores["text_id"] = scores["text_id"].astype(str)
+    metadata["text_id"] = metadata["text_id"].astype(str)
+    metadata[group_variable] = metadata[group_variable].astype(str)
+
     merged = scores.merge(metadata, on="text_id", how="left")
 
     if merged[group_variable].isna().any():
         missing_count = int(merged[group_variable].isna().sum())
         msg = f"Missing group metadata for {missing_count} scored texts."
         raise AnovaError(msg)
+
+    merged[group_variable] = merged[group_variable].astype(str)
 
     return merged
 
