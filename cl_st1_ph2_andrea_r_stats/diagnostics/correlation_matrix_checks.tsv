@@ -1,0 +1,17 @@
+check	value
+observation_count	822
+variable_count	277
+constant_zero_variable_count	0
+constant_one_variable_count	0
+non_finite_values_replaced	0
+values_above_one_clamped	0
+values_below_minus_one_clamped	0
+is_square	TRUE
+row_column_labels_match	TRUE
+all_values_finite	TRUE
+max_absolute_asymmetry_after_symmetrising	0
+diagonal_min	1
+diagonal_max	1
+smallest_eigenvalue	-3.25117223066
+largest_eigenvalue	53.9294100906
+negative_eigenvalue_count_tolerance_1e_minus_8	120
