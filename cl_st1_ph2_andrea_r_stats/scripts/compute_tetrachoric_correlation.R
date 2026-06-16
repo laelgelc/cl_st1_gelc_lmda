@@ -181,7 +181,8 @@ message("Starting tetrachoric correlation computation...")
  tetrachoric_result <- psych::tetrachoric(
    variable_matrix,
    correct = 0.5,
-   smooth = FALSE,
+   #smooth = FALSE,
+   smooth = TRUE,
    global = TRUE
  )
 

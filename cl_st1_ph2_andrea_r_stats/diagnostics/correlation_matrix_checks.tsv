@@ -12,6 +12,6 @@ all_values_finite	TRUE
 max_absolute_asymmetry_after_symmetrising	0
 diagonal_min	1
 diagonal_max	1
-smallest_eigenvalue	-3.25117223066
-largest_eigenvalue	53.9294100906
-negative_eigenvalue_count_tolerance_1e_minus_8	120
+smallest_eigenvalue	6.4317424797e-11
+largest_eigenvalue	40.6500691001
+negative_eigenvalue_count_tolerance_1e_minus_8	0
