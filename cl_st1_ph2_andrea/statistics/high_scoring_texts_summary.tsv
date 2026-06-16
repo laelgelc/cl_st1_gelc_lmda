@@ -10,11 +10,11 @@ samples_output_path	cl_st1_ph2_andrea/statistics/high_scoring_text_samples.tsv
 score_details_output_path	cl_st1_ph2_andrea/statistics/high_scoring_score_details.tsv
 markdown_examples_output_directory	cl_st1_ph2_andrea/statistics/high_scoring_markdown_examples
 factor_count	4
-selected_text_count	150
-top_group_examples	5
-other_group_examples	2
+selected_text_count	605
+top_group_examples	20
+other_group_examples	10
 excerpt_character_limit	
-source_excerpt_count	150
+source_excerpt_count	605
 missing_source_count	0
-markdown_example_count	150
+markdown_example_count	605
 development_backend_source	true

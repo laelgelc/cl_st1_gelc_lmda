@@ -270,14 +270,14 @@ class MainWindow(QMainWindow):
 
         action_row = QHBoxLayout()
 
-        primary_action = QPushButton("Primary action")
-        primary_action.clicked.connect(self._show_not_implemented)
+        self.primary_action_button = QPushButton("Primary action")
+        self.primary_action_button.clicked.connect(self._on_placeholder_primary_action)
 
-        secondary_action = QPushButton("Secondary action")
-        secondary_action.clicked.connect(self._show_not_implemented)
+        self.secondary_action_button = QPushButton("Secondary action")
+        self.secondary_action_button.clicked.connect(self._on_placeholder_secondary_action)
 
-        action_row.addWidget(primary_action)
-        action_row.addWidget(secondary_action)
+        action_row.addWidget(self.primary_action_button)
+        action_row.addWidget(self.secondary_action_button)
         action_row.addStretch()
 
         layout.addWidget(self.content_title)
@@ -465,6 +465,47 @@ class MainWindow(QMainWindow):
         self.content_stack.setCurrentWidget(self.placeholder_widget)
         self.content_title.setText(stage.label)
         self.content_body.setText(self._placeholder_text_for_stage(stage.key))
+
+        if stage.key == "project_setup":
+            self.primary_action_button.setText("New Project")
+            self.secondary_action_button.setText("Open Project")
+        else:
+            self.primary_action_button.setText("Primary action")
+            self.secondary_action_button.setText("Secondary action")
+
+    def _on_placeholder_primary_action(self) -> None:
+        """Handle the primary action on placeholder workflow screens."""
+        current_row = self.workflow_list.currentRow()
+
+        if current_row < 0:
+            self._show_not_implemented()
+            return
+
+        item = self.workflow_list.item(current_row)
+        stage_key = item.data(Qt.ItemDataRole.UserRole)
+
+        if stage_key == "project_setup":
+            self._create_new_project()
+            return
+
+        self._show_not_implemented()
+
+    def _on_placeholder_secondary_action(self) -> None:
+        """Handle the secondary action on placeholder workflow screens."""
+        current_row = self.workflow_list.currentRow()
+
+        if current_row < 0:
+            self._show_not_implemented()
+            return
+
+        item = self.workflow_list.item(current_row)
+        stage_key = item.data(Qt.ItemDataRole.UserRole)
+
+        if stage_key == "project_setup":
+            self._open_project()
+            return
+
+        self._show_not_implemented()
 
     def _placeholder_text_for_stage(self, stage_key: str) -> str:
         """Return placeholder content for a workflow stage."""
