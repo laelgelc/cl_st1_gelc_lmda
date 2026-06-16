@@ -5,6 +5,7 @@ from pathlib import Path
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QGroupBox,
+    QInputDialog,
     QLabel,
     QMessageBox,
     QProgressBar,
@@ -33,6 +34,8 @@ from lmda_app.statistics.factor_scoring import (
 )
 
 from lmda_app.statistics.high_scoring_texts import (
+    DEFAULT_OTHER_GROUP_EXAMPLES,
+    DEFAULT_TOP_GROUP_EXAMPLES, 
     HighScoringTextsError,
     HighScoringTextsSummary,
     generate_high_scoring_text_examples,
@@ -66,6 +69,7 @@ class FinalAnalysisWidget(QWidget):
         self.factor_scores_path: Path | None = None
         self.full_factor_scores_path: Path | None = None
         self.statistical_matrix_metadata_path: Path | None = None
+        self.group_mean_factor_scores_path: Path | None = None
         self.keyword_id_mapping_path: Path | None = None
         self.text_id_mapping_path: Path | None = None
         self.corpus_directory: Path | None = None
@@ -136,6 +140,7 @@ class FinalAnalysisWidget(QWidget):
         factor_scores_path: Path | None = None,
         full_factor_scores_path: Path | None = None,
         statistical_matrix_metadata_path: Path | None = None,
+        group_mean_factor_scores_path: Path | None = None,
         keyword_id_mapping_path: Path | None = None,
         text_id_mapping_path: Path | None = None,
         corpus_directory: Path | None = None,
@@ -150,6 +155,7 @@ class FinalAnalysisWidget(QWidget):
         self.factor_scores_path = factor_scores_path
         self.full_factor_scores_path = full_factor_scores_path
         self.statistical_matrix_metadata_path = statistical_matrix_metadata_path
+        self.group_mean_factor_scores_path = group_mean_factor_scores_path
         self.keyword_id_mapping_path = keyword_id_mapping_path
         self.text_id_mapping_path = text_id_mapping_path
         self.corpus_directory = corpus_directory
@@ -392,6 +398,7 @@ class FinalAnalysisWidget(QWidget):
             "factor scores": self.factor_scores_path,
             "full factor scores": self.full_factor_scores_path,
             "statistical metadata": self.statistical_matrix_metadata_path,
+            "group mean factor scores": self.group_mean_factor_scores_path,
             "factor/pole assignments": self.factor_pole_assignments_path,
             "keyword ID mapping": self.keyword_id_mapping_path,
             "text ID mapping": self.text_id_mapping_path,
@@ -408,7 +415,31 @@ class FinalAnalysisWidget(QWidget):
                 self,
                 "Missing inputs",
                 "Generate the required upstream outputs first: " + ", ".join(missing),
-            )
+                )
+            return
+
+        top_group_examples, accepted = QInputDialog.getInt(
+            self,
+            "Top-ranked group examples",
+            "Examples from the top-ranked group for each factor pole:",
+            DEFAULT_TOP_GROUP_EXAMPLES,
+            1,
+            1000,
+        )
+
+        if not accepted:
+            return
+
+        other_group_examples, accepted = QInputDialog.getInt(
+            self,
+            "Other group examples",
+            "Examples from each other ranked group for each factor pole:",
+            DEFAULT_OTHER_GROUP_EXAMPLES,
+            0,
+            1000,
+        )
+
+        if not accepted:
             return
 
         output_directory = self.project_directory / "statistics"
@@ -423,11 +454,14 @@ class FinalAnalysisWidget(QWidget):
                 factor_scores_path=self.factor_scores_path,
                 full_factor_scores_path=self.full_factor_scores_path,
                 metadata_path=self.statistical_matrix_metadata_path,
+                group_means_path=self.group_mean_factor_scores_path,
                 assignment_table_path=self.factor_pole_assignments_path,
                 keyword_id_mapping_path=self.keyword_id_mapping_path,
                 text_id_mapping_path=self.text_id_mapping_path,
                 output_directory=output_directory,
                 corpus_directory=self.corpus_directory,
+                top_group_examples=top_group_examples,
+                other_group_examples=other_group_examples,
                 development_backend_source=True,
             )
         except (OSError, ValueError, HighScoringTextsError) as exc:
@@ -616,8 +650,10 @@ class FinalAnalysisWidget(QWidget):
             else "Development backend source: no",
             "",
             f"Factors: {summary.factor_count}",
-            f"Examples per pole: {summary.examples_per_pole}",
+            f"Top-ranked group examples: {summary.top_group_examples}",
+            f"Other group examples: {summary.other_group_examples}",
             f"Selected text examples: {summary.selected_text_count}",
+            f"Markdown example files: {summary.markdown_example_count}",
             f"Excerpt character limit: {summary.excerpt_character_limit}",
             f"Source excerpts retrieved: {summary.source_excerpt_count}",
             f"Missing source excerpts: {summary.missing_source_count}",
@@ -625,15 +661,18 @@ class FinalAnalysisWidget(QWidget):
             f"Factor scores: {summary.factor_scores_path}",
             f"Full factor scores: {summary.full_factor_scores_path}",
             f"Metadata: {summary.metadata_path}",
+            f"Group means: {summary.group_means_path}",
             f"Assignment table: {summary.assignment_table_path}",
             f"Keyword ID mapping: {summary.keyword_id_mapping_path}",
             f"Text ID mapping: {summary.text_id_mapping_path}",
             "",
             f"High-scoring samples: {summary.samples_output_path}",
             f"Score details: {summary.score_details_output_path}",
+            f"Markdown examples: {summary.markdown_examples_output_directory}",
             f"Summary: {summary.summary_output_path}",
             "",
-            "Examples are selected deterministically by score, with text ID as tie-breaker.",
+            "Examples are selected by pole-ranked group means, then by score, "
+            "with text ID as tie-breaker. Zero-score texts are skipped.",
         ]
 
         self.summary_text.setPlainText("\n".join(lines))

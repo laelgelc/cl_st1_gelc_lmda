@@ -455,6 +455,7 @@ class MainWindow(QMainWindow):
                 factor_scores_path=self._get_factor_scores_path(),
                 full_factor_scores_path=self._get_factor_scores_full_path(),
                 statistical_matrix_metadata_path=self._get_statistical_matrix_metadata_path(),
+                group_mean_factor_scores_path=self._get_group_mean_factor_scores_path(),
                 keyword_id_mapping_path=self._get_keyword_id_mapping_path(),
                 text_id_mapping_path=self._get_text_id_mapping_path(),
                 corpus_directory=self.state.corpus_directory,
@@ -1483,11 +1484,11 @@ class MainWindow(QMainWindow):
             )
             return
 
-        self.state.project.output_paths["high_scoring_text_samples"] = str(
-            summary.samples_output_path
-        )
         self.state.project.output_paths["high_scoring_score_details"] = str(
             summary.score_details_output_path
+        )
+        self.state.project.output_paths["high_scoring_markdown_examples"] = str(
+            summary.markdown_examples_output_directory
         )
         self.state.project.output_paths["high_scoring_texts_summary"] = str(
             summary.summary_output_path
@@ -1495,12 +1496,14 @@ class MainWindow(QMainWindow):
         self.state.project.settings["high_scoring_texts"] = {
             "factor_count": summary.factor_count,
             "selected_text_count": summary.selected_text_count,
-            "examples_per_pole": summary.examples_per_pole,
+            "top_group_examples": summary.top_group_examples,
+            "other_group_examples": summary.other_group_examples,
             "excerpt_character_limit": summary.excerpt_character_limit,
             "source_excerpt_count": summary.source_excerpt_count,
             "missing_source_count": summary.missing_source_count,
+            "markdown_example_count": summary.markdown_example_count,
             "development_backend_source": summary.development_backend_source,
-            "selection_method": "score_extremes_with_text_id_tie_break",
+            "selection_method": "pole_ranked_groups_then_score_extremes",
         }
 
         self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
@@ -1509,16 +1512,17 @@ class MainWindow(QMainWindow):
         self._select_stage_by_key("final_analysis")
 
         self.log_message(
-            f"High-scoring text samples written to: {summary.samples_output_path}"
+            f"High-scoring score details written to: {summary.score_details_output_path}"
         )
         self.log_message(
-            f"High-scoring score details written to: {summary.score_details_output_path}"
+            f"Markdown examples written to: {summary.markdown_examples_output_directory}"
         )
         self.log_message(
             "High-scoring text summary: "
             f"{summary.selected_text_count} selected examples, "
             f"{summary.factor_count} factors, "
-            f"{summary.examples_per_pole} examples per pole."
+            f"{summary.top_group_examples} top-group examples, "
+            f"{summary.other_group_examples} other-group examples."
         )
 
     def _save_project_after_stage(self, stage_description: str) -> bool:
@@ -1684,6 +1688,10 @@ class MainWindow(QMainWindow):
     def _get_anova_results_path(self) -> Path | None:
         """Return ANOVA results path if it exists."""
         return self._get_output_path("anova_results")
+
+    def _get_group_mean_factor_scores_path(self) -> Path | None:
+        """Return group mean factor scores path if it exists."""
+        return self._get_output_path("group_mean_factor_scores")
 
     def _get_high_scoring_text_samples_path(self) -> Path | None:
         """Return high-scoring text samples path if it exists."""
