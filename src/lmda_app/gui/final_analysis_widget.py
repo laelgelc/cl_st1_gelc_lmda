@@ -14,6 +14,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from lmda_app.statistics.anova import (
+    AnovaError,
+    AnovaSummary,
+    compute_anova_and_group_means,
+)
+
 from lmda_app.statistics.final_factor_analysis import (
     FinalFactorAnalysisError,
     FinalFactorAnalysisSummary,
@@ -39,6 +45,7 @@ class FinalAnalysisWidget(QWidget):
     final_factor_analysis_computed = Signal(FinalFactorAnalysisSummary)
     loading_assignment_computed = Signal(LoadingAssignmentSummary)
     factor_scores_computed = Signal(FactorScoringSummary)
+    anova_computed = Signal(AnovaSummary)
 
     def __init__(self, parent=None) -> None:  # noqa: ANN001
         super().__init__(parent)
@@ -49,10 +56,13 @@ class FinalAnalysisWidget(QWidget):
         self.final_rotated_factor_pattern_path: Path | None = None
         self.statistical_matrix_path: Path | None = None
         self.factor_pole_assignments_path: Path | None = None
+        self.factor_scores_path: Path | None = None
+        self.statistical_matrix_metadata_path: Path | None = None
 
         self.run_button = QPushButton("Run Final Factor Analysis")
         self.assign_loadings_button = QPushButton("Assign Factor Poles")
         self.score_factors_button = QPushButton("Compute Factor Scores")
+        self.anova_button = QPushButton("Run ANOVA and Group Means")
         self.progress_bar = QProgressBar()
         self.progress_label = QLabel("Ready")
         self.summary_text = QTextEdit()
@@ -82,6 +92,7 @@ class FinalAnalysisWidget(QWidget):
         self.run_button.clicked.connect(self._run_final_factor_analysis)
         self.assign_loadings_button.clicked.connect(self._assign_factor_poles)
         self.score_factors_button.clicked.connect(self._compute_factor_scores)
+        self.anova_button.clicked.connect(self._run_anova)
 
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
@@ -95,6 +106,7 @@ class FinalAnalysisWidget(QWidget):
         root_layout.addWidget(self.run_button)
         root_layout.addWidget(self.assign_loadings_button)
         root_layout.addWidget(self.score_factors_button)
+        root_layout.addWidget(self.anova_button)
         root_layout.addWidget(self.progress_label)
         root_layout.addWidget(self.progress_bar)
         root_layout.addWidget(summary_group, stretch=1)
@@ -107,6 +119,8 @@ class FinalAnalysisWidget(QWidget):
         final_rotated_factor_pattern_path: Path | None = None,
         statistical_matrix_path: Path | None = None,
         factor_pole_assignments_path: Path | None = None,
+        factor_scores_path: Path | None = None,
+        statistical_matrix_metadata_path: Path | None = None,
     ) -> None:
         """Set project context for final factor analysis."""
         self.project_directory = project_directory
@@ -115,6 +129,8 @@ class FinalAnalysisWidget(QWidget):
         self.final_rotated_factor_pattern_path = final_rotated_factor_pattern_path
         self.statistical_matrix_path = statistical_matrix_path
         self.factor_pole_assignments_path = factor_pole_assignments_path
+        self.factor_scores_path = factor_scores_path
+        self.statistical_matrix_metadata_path = statistical_matrix_metadata_path
 
     def _run_final_factor_analysis(self) -> None:
         """Run final factor analysis."""
@@ -279,7 +295,66 @@ class FinalAnalysisWidget(QWidget):
 
         self._set_processing_ui("Factor scoring complete", is_processing=False)
         self._display_factor_scoring_summary(summary)
+        self.factor_scores_path = summary.scores_only_output_path
         self.factor_scores_computed.emit(summary)
+
+    def _run_anova(self) -> None:
+        """Run ANOVA and group means from factor scores."""
+        if self.project_directory is None:
+            QMessageBox.warning(
+                self,
+                "No project",
+                "Create or open a project before running ANOVA.",
+            )
+            return
+
+        if self.factor_scores_path is None or not self.factor_scores_path.exists():
+            QMessageBox.warning(
+                self,
+                "Missing factor scores",
+                "Compute factor scores before running ANOVA.",
+            )
+            return
+
+        if (
+            self.statistical_matrix_metadata_path is None
+            or not self.statistical_matrix_metadata_path.exists()
+        ):
+            QMessageBox.warning(
+                self,
+                "Missing statistical metadata",
+                "Prepare statistical input before running ANOVA.",
+            )
+            return
+
+        output_directory = self.project_directory / "statistics"
+
+        self._set_processing_ui("Running ANOVA and group means...", is_processing=True)
+
+        try:
+            summary = compute_anova_and_group_means(
+                factor_scores_path=self.factor_scores_path,
+                metadata_path=self.statistical_matrix_metadata_path,
+                output_directory=output_directory,
+                group_variable="subcorpus",
+                development_backend_source=True,
+            )
+        except (OSError, ValueError, AnovaError) as exc:
+            self._set_processing_ui(
+                "ANOVA failed",
+                is_processing=False,
+                complete=False,
+            )
+            QMessageBox.critical(
+                self,
+                "Could not run ANOVA",
+                str(exc),
+            )
+            return
+
+        self._set_processing_ui("ANOVA and group means complete", is_processing=False)
+        self._display_anova_summary(summary)
+        self.anova_computed.emit(summary)
 
     def _set_processing_ui(
         self,
@@ -292,6 +367,7 @@ class FinalAnalysisWidget(QWidget):
         self.run_button.setDisabled(is_processing)
         self.assign_loadings_button.setDisabled(is_processing)
         self.score_factors_button.setDisabled(is_processing)
+        self.anova_button.setDisabled(is_processing)
         self.progress_label.setText(message)
 
         if is_processing:
@@ -388,6 +464,34 @@ class FinalAnalysisWidget(QWidget):
             "",
             "Scores use pole-based scoring: positive variables +1, "
             "negative variables -1, unloaded variables 0.",
+        ]
+
+        self.summary_text.setPlainText("\n".join(lines))
+
+    def _display_anova_summary(
+        self,
+        summary: AnovaSummary,
+    ) -> None:
+        """Display ANOVA and group means summary."""
+        lines = [
+            "ANOVA and group means complete",
+            "",
+            "Development backend source: yes"
+            if summary.development_backend_source
+            else "Development backend source: no",
+            "",
+            f"Group variable: {summary.group_variable}",
+            f"Texts: {summary.text_count}",
+            f"Groups: {summary.group_count}",
+            f"Factors: {summary.factor_count}",
+            "",
+            f"Factor scores: {summary.factor_scores_path}",
+            f"Metadata: {summary.metadata_path}",
+            f"ANOVA results: {summary.anova_results_output_path}",
+            f"Group means: {summary.group_means_output_path}",
+            f"Summary: {summary.summary_output_path}",
+            "",
+            "ANOVA uses one-way group comparisons for each factor score.",
         ]
 
         self.summary_text.setPlainText("\n".join(lines))

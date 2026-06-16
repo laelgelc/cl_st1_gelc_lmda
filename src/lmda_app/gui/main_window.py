@@ -49,6 +49,7 @@ from lmda_app.gui.nlp_settings_widget import NlpSettingsWidget
 from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
 from lmda_app.nlp.processed_tokens import ProcessingSummary
 from lmda_app.statistics.correlation import CorrelationSummary
+from lmda_app.statistics.anova import AnovaSummary
 from lmda_app.statistics.eigen_analysis import EigenAnalysisSummary
 from lmda_app.statistics.factor_scoring import FactorScoringSummary
 from lmda_app.statistics.final_factor_analysis import FinalFactorAnalysisSummary
@@ -249,6 +250,10 @@ class MainWindow(QMainWindow):
             self._on_factor_scores_computed
         )
 
+        self.final_analysis_widget.anova_computed.connect(
+            self._on_anova_computed
+        )
+
     def _create_placeholder_widget(self) -> QWidget:
         """Create the placeholder content widget."""
         widget = QWidget()
@@ -445,6 +450,8 @@ class MainWindow(QMainWindow):
                 final_rotated_factor_pattern_path=(self._get_final_rotated_factor_pattern_path()),
                 statistical_matrix_path=self._get_reduced_statistical_matrix_path(),
                 factor_pole_assignments_path=self._get_factor_pole_assignments_path(),
+                factor_scores_path=self._get_factor_scores_path(),
+                statistical_matrix_metadata_path=self._get_statistical_matrix_metadata_path(),
             )
             return
 
@@ -610,6 +617,9 @@ class MainWindow(QMainWindow):
             self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
 
         if self._get_factor_scores_path() is not None:
+            self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
+
+        if self._get_anova_results_path() is not None:
             self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
@@ -1410,6 +1420,47 @@ class MainWindow(QMainWindow):
             "Source backend: development."
         )
 
+    def _on_anova_computed(self, summary: AnovaSummary) -> None:
+        """Handle completed ANOVA and group means."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before running ANOVA.",
+            )
+            return
+
+        self.state.project.output_paths["anova_results"] = str(
+            summary.anova_results_output_path
+        )
+        self.state.project.output_paths["group_mean_factor_scores"] = str(
+            summary.group_means_output_path
+        )
+        self.state.project.output_paths["anova_summary"] = str(
+            summary.summary_output_path
+        )
+        self.state.project.settings["anova"] = {
+            "group_variable": summary.group_variable,
+            "text_count": summary.text_count,
+            "group_count": summary.group_count,
+            "factor_count": summary.factor_count,
+            "development_backend_source": summary.development_backend_source,
+        }
+
+        self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
+        self._save_project_after_stage("ANOVA")
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("final_analysis")
+
+        self.log_message(f"ANOVA results written to: {summary.anova_results_output_path}")
+        self.log_message(f"Group means written to: {summary.group_means_output_path}")
+        self.log_message(
+            "ANOVA summary: "
+            f"{summary.factor_count} factors, "
+            f"{summary.group_count} groups, "
+            f"{summary.text_count} texts."
+        )
+
     def _save_project_after_stage(self, stage_description: str) -> bool:
         """Save the project after a workflow update."""
         if self.state.project is None:
@@ -1561,6 +1612,14 @@ class MainWindow(QMainWindow):
     def _get_factor_scores_path(self) -> Path | None:
         """Return factor scores path if it exists."""
         return self._get_output_path("factor_scores")
+
+    def _get_statistical_matrix_metadata_path(self) -> Path | None:
+        """Return statistical matrix metadata path if it exists."""
+        return self._get_output_path("statistical_matrix_metadata")
+
+    def _get_anova_results_path(self) -> Path | None:
+        """Return ANOVA results path if it exists."""
+        return self._get_output_path("anova_results")
 
     def _update_window_title(self) -> None:
         """Update the main window title."""
