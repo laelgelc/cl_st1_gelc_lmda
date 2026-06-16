@@ -53,6 +53,7 @@ from lmda_app.statistics.anova import AnovaSummary
 from lmda_app.statistics.eigen_analysis import EigenAnalysisSummary
 from lmda_app.statistics.factor_scoring import FactorScoringSummary
 from lmda_app.statistics.final_factor_analysis import FinalFactorAnalysisSummary
+from lmda_app.statistics.high_scoring_texts import HighScoringTextsSummary
 from lmda_app.statistics.initial_factor_extraction import InitialFactorExtractionSummary
 from lmda_app.statistics.loading_assignment import LoadingAssignmentSummary
 from lmda_app.statistics.matrix_input import StatisticalInputSummary
@@ -245,13 +246,14 @@ class MainWindow(QMainWindow):
         self.final_analysis_widget.loading_assignment_computed.connect(
             self._on_loading_assignment_computed
         )
-
         self.final_analysis_widget.factor_scores_computed.connect(
             self._on_factor_scores_computed
         )
-
         self.final_analysis_widget.anova_computed.connect(
             self._on_anova_computed
+        )
+        self.final_analysis_widget.high_scoring_texts_created.connect(
+            self._on_high_scoring_texts_created
         )
 
     def _create_placeholder_widget(self) -> QWidget:
@@ -451,7 +453,11 @@ class MainWindow(QMainWindow):
                 statistical_matrix_path=self._get_reduced_statistical_matrix_path(),
                 factor_pole_assignments_path=self._get_factor_pole_assignments_path(),
                 factor_scores_path=self._get_factor_scores_path(),
+                full_factor_scores_path=self._get_factor_scores_full_path(),
                 statistical_matrix_metadata_path=self._get_statistical_matrix_metadata_path(),
+                keyword_id_mapping_path=self._get_keyword_id_mapping_path(),
+                text_id_mapping_path=self._get_text_id_mapping_path(),
+                corpus_directory=self.state.corpus_directory,
             )
             return
 
@@ -620,6 +626,9 @@ class MainWindow(QMainWindow):
             self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
 
         if self._get_anova_results_path() is not None:
+            self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
+
+        if self._get_high_scoring_text_samples_path() is not None:
             self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
@@ -1461,6 +1470,57 @@ class MainWindow(QMainWindow):
             f"{summary.text_count} texts."
         )
 
+    def _on_high_scoring_texts_created(
+        self,
+        summary: HighScoringTextsSummary,
+    ) -> None:
+        """Handle completed high-scoring text example generation."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before generating high-scoring examples.",
+            )
+            return
+
+        self.state.project.output_paths["high_scoring_text_samples"] = str(
+            summary.samples_output_path
+        )
+        self.state.project.output_paths["high_scoring_score_details"] = str(
+            summary.score_details_output_path
+        )
+        self.state.project.output_paths["high_scoring_texts_summary"] = str(
+            summary.summary_output_path
+        )
+        self.state.project.settings["high_scoring_texts"] = {
+            "factor_count": summary.factor_count,
+            "selected_text_count": summary.selected_text_count,
+            "examples_per_pole": summary.examples_per_pole,
+            "excerpt_character_limit": summary.excerpt_character_limit,
+            "source_excerpt_count": summary.source_excerpt_count,
+            "missing_source_count": summary.missing_source_count,
+            "development_backend_source": summary.development_backend_source,
+            "selection_method": "score_extremes_with_text_id_tie_break",
+        }
+
+        self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
+        self._save_project_after_stage("high-scoring text examples")
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("final_analysis")
+
+        self.log_message(
+            f"High-scoring text samples written to: {summary.samples_output_path}"
+        )
+        self.log_message(
+            f"High-scoring score details written to: {summary.score_details_output_path}"
+        )
+        self.log_message(
+            "High-scoring text summary: "
+            f"{summary.selected_text_count} selected examples, "
+            f"{summary.factor_count} factors, "
+            f"{summary.examples_per_pole} examples per pole."
+        )
+
     def _save_project_after_stage(self, stage_description: str) -> bool:
         """Save the project after a workflow update."""
         if self.state.project is None:
@@ -1613,6 +1673,10 @@ class MainWindow(QMainWindow):
         """Return factor scores path if it exists."""
         return self._get_output_path("factor_scores")
 
+    def _get_factor_scores_full_path(self) -> Path | None:
+        """Return full factor scores path if it exists."""
+        return self._get_output_path("factor_scores_full")
+
     def _get_statistical_matrix_metadata_path(self) -> Path | None:
         """Return statistical matrix metadata path if it exists."""
         return self._get_output_path("statistical_matrix_metadata")
@@ -1620,6 +1684,10 @@ class MainWindow(QMainWindow):
     def _get_anova_results_path(self) -> Path | None:
         """Return ANOVA results path if it exists."""
         return self._get_output_path("anova_results")
+
+    def _get_high_scoring_text_samples_path(self) -> Path | None:
+        """Return high-scoring text samples path if it exists."""
+        return self._get_output_path("high_scoring_text_samples")
 
     def _update_window_title(self) -> None:
         """Update the main window title."""

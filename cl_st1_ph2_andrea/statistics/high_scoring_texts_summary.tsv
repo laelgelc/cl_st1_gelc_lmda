@@ -1,0 +1,16 @@
+field	value
+factor_scores_path	cl_st1_ph2_andrea/statistics/factor_scores.tsv
+full_factor_scores_path	cl_st1_ph2_andrea/statistics/factor_scores_full.tsv
+metadata_path	cl_st1_ph2_andrea/statistics/statistical_matrix_metadata.tsv
+assignment_table_path	cl_st1_ph2_andrea/statistics/factor_pole_assignments.tsv
+keyword_id_mapping_path	cl_st1_ph2_andrea/matrix/keyword_id_mapping.tsv
+text_id_mapping_path	cl_st1_ph2_andrea/processed/text_id_mapping.tsv
+samples_output_path	cl_st1_ph2_andrea/statistics/high_scoring_text_samples.tsv
+score_details_output_path	cl_st1_ph2_andrea/statistics/high_scoring_score_details.tsv
+factor_count	4
+selected_text_count	40
+examples_per_pole	5
+excerpt_character_limit	500
+source_excerpt_count	40
+missing_source_count	0
+development_backend_source	true

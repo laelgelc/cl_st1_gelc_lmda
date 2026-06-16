@@ -32,6 +32,12 @@ from lmda_app.statistics.factor_scoring import (
     compute_factor_scores,
 )
 
+from lmda_app.statistics.high_scoring_texts import (
+    HighScoringTextsError,
+    HighScoringTextsSummary,
+    generate_high_scoring_text_examples,
+)
+
 from lmda_app.statistics.loading_assignment import (
     DEFAULT_LOADING_CUTOFF,
     LoadingAssignmentError,
@@ -46,6 +52,7 @@ class FinalAnalysisWidget(QWidget):
     loading_assignment_computed = Signal(LoadingAssignmentSummary)
     factor_scores_computed = Signal(FactorScoringSummary)
     anova_computed = Signal(AnovaSummary)
+    high_scoring_texts_created = Signal(HighScoringTextsSummary)
 
     def __init__(self, parent=None) -> None:  # noqa: ANN001
         super().__init__(parent)
@@ -57,12 +64,17 @@ class FinalAnalysisWidget(QWidget):
         self.statistical_matrix_path: Path | None = None
         self.factor_pole_assignments_path: Path | None = None
         self.factor_scores_path: Path | None = None
+        self.full_factor_scores_path: Path | None = None
         self.statistical_matrix_metadata_path: Path | None = None
+        self.keyword_id_mapping_path: Path | None = None
+        self.text_id_mapping_path: Path | None = None
+        self.corpus_directory: Path | None = None
 
         self.run_button = QPushButton("Run Final Factor Analysis")
         self.assign_loadings_button = QPushButton("Assign Factor Poles")
         self.score_factors_button = QPushButton("Compute Factor Scores")
         self.anova_button = QPushButton("Run ANOVA and Group Means")
+        self.high_scoring_texts_button = QPushButton("Generate High-Scoring Text Examples")
         self.progress_bar = QProgressBar()
         self.progress_label = QLabel("Ready")
         self.summary_text = QTextEdit()
@@ -93,6 +105,7 @@ class FinalAnalysisWidget(QWidget):
         self.assign_loadings_button.clicked.connect(self._assign_factor_poles)
         self.score_factors_button.clicked.connect(self._compute_factor_scores)
         self.anova_button.clicked.connect(self._run_anova)
+        self.high_scoring_texts_button.clicked.connect(self._generate_high_scoring_texts)
 
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
@@ -107,6 +120,7 @@ class FinalAnalysisWidget(QWidget):
         root_layout.addWidget(self.assign_loadings_button)
         root_layout.addWidget(self.score_factors_button)
         root_layout.addWidget(self.anova_button)
+        root_layout.addWidget(self.high_scoring_texts_button)
         root_layout.addWidget(self.progress_label)
         root_layout.addWidget(self.progress_bar)
         root_layout.addWidget(summary_group, stretch=1)
@@ -120,7 +134,11 @@ class FinalAnalysisWidget(QWidget):
         statistical_matrix_path: Path | None = None,
         factor_pole_assignments_path: Path | None = None,
         factor_scores_path: Path | None = None,
+        full_factor_scores_path: Path | None = None,
         statistical_matrix_metadata_path: Path | None = None,
+        keyword_id_mapping_path: Path | None = None,
+        text_id_mapping_path: Path | None = None,
+        corpus_directory: Path | None = None,
     ) -> None:
         """Set project context for final factor analysis."""
         self.project_directory = project_directory
@@ -130,7 +148,11 @@ class FinalAnalysisWidget(QWidget):
         self.statistical_matrix_path = statistical_matrix_path
         self.factor_pole_assignments_path = factor_pole_assignments_path
         self.factor_scores_path = factor_scores_path
+        self.full_factor_scores_path = full_factor_scores_path
         self.statistical_matrix_metadata_path = statistical_matrix_metadata_path
+        self.keyword_id_mapping_path = keyword_id_mapping_path
+        self.text_id_mapping_path = text_id_mapping_path
+        self.corpus_directory = corpus_directory
 
     def _run_final_factor_analysis(self) -> None:
         """Run final factor analysis."""
@@ -356,6 +378,90 @@ class FinalAnalysisWidget(QWidget):
         self._display_anova_summary(summary)
         self.anova_computed.emit(summary)
 
+    def _generate_high_scoring_texts(self) -> None:
+        """Generate high-scoring text examples and score details."""
+        if self.project_directory is None:
+            QMessageBox.warning(
+                self,
+                "No project",
+                "Create or open a project before generating high-scoring examples.",
+            )
+            return
+
+        required_paths = {
+            "factor scores": self.factor_scores_path,
+            "full factor scores": self.full_factor_scores_path,
+            "statistical metadata": self.statistical_matrix_metadata_path,
+            "factor/pole assignments": self.factor_pole_assignments_path,
+            "keyword ID mapping": self.keyword_id_mapping_path,
+            "text ID mapping": self.text_id_mapping_path,
+        }
+
+        missing = [
+            label
+            for label, path in required_paths.items()
+            if path is None or not path.exists()
+        ]
+
+        if missing:
+            QMessageBox.warning(
+                self,
+                "Missing inputs",
+                "Generate the required upstream outputs first: " + ", ".join(missing),
+            )
+            return
+
+        output_directory = self.project_directory / "statistics"
+
+        self._set_processing_ui(
+            "Generating high-scoring text examples...",
+            is_processing=True,
+        )
+
+        try:
+            summary = generate_high_scoring_text_examples(
+                factor_scores_path=self.factor_scores_path,
+                full_factor_scores_path=self.full_factor_scores_path,
+                metadata_path=self.statistical_matrix_metadata_path,
+                assignment_table_path=self.factor_pole_assignments_path,
+                keyword_id_mapping_path=self.keyword_id_mapping_path,
+                text_id_mapping_path=self.text_id_mapping_path,
+                output_directory=output_directory,
+                corpus_directory=self.corpus_directory,
+                development_backend_source=True,
+            )
+        except (OSError, ValueError, HighScoringTextsError) as exc:
+            self._set_processing_ui(
+                "High-scoring text example generation failed",
+                is_processing=False,
+                complete=False,
+            )
+            QMessageBox.critical(
+                self,
+                "Could not generate high-scoring examples",
+                str(exc),
+            )
+            return
+        except Exception as exc:
+            self._set_processing_ui(
+                "High-scoring text example generation failed",
+                is_processing=False,
+                complete=False,
+            )
+            QMessageBox.critical(
+                self,
+                "Unexpected error while generating high-scoring examples",
+                str(exc),
+            )
+            return
+
+        self._set_processing_ui(
+            "High-scoring text examples complete",
+            is_processing=False,
+        )
+        self._display_high_scoring_texts_summary(summary)
+        self.high_scoring_texts_created.emit(summary)
+
     def _set_processing_ui(
         self,
         message: str,
@@ -368,6 +474,7 @@ class FinalAnalysisWidget(QWidget):
         self.assign_loadings_button.setDisabled(is_processing)
         self.score_factors_button.setDisabled(is_processing)
         self.anova_button.setDisabled(is_processing)
+        self.high_scoring_texts_button.setDisabled(is_processing)
         self.progress_label.setText(message)
 
         if is_processing:
@@ -492,6 +599,41 @@ class FinalAnalysisWidget(QWidget):
             f"Summary: {summary.summary_output_path}",
             "",
             "ANOVA uses one-way group comparisons for each factor score.",
+        ]
+
+        self.summary_text.setPlainText("\n".join(lines))
+
+    def _display_high_scoring_texts_summary(
+        self,
+        summary: HighScoringTextsSummary,
+    ) -> None:
+        """Display high-scoring text example summary."""
+        lines = [
+            "High-scoring text examples complete",
+            "",
+            "Development backend source: yes"
+            if summary.development_backend_source
+            else "Development backend source: no",
+            "",
+            f"Factors: {summary.factor_count}",
+            f"Examples per pole: {summary.examples_per_pole}",
+            f"Selected text examples: {summary.selected_text_count}",
+            f"Excerpt character limit: {summary.excerpt_character_limit}",
+            f"Source excerpts retrieved: {summary.source_excerpt_count}",
+            f"Missing source excerpts: {summary.missing_source_count}",
+            "",
+            f"Factor scores: {summary.factor_scores_path}",
+            f"Full factor scores: {summary.full_factor_scores_path}",
+            f"Metadata: {summary.metadata_path}",
+            f"Assignment table: {summary.assignment_table_path}",
+            f"Keyword ID mapping: {summary.keyword_id_mapping_path}",
+            f"Text ID mapping: {summary.text_id_mapping_path}",
+            "",
+            f"High-scoring samples: {summary.samples_output_path}",
+            f"Score details: {summary.score_details_output_path}",
+            f"Summary: {summary.summary_output_path}",
+            "",
+            "Examples are selected deterministically by score, with text ID as tie-breaker.",
         ]
 
         self.summary_text.setPlainText("\n".join(lines))
