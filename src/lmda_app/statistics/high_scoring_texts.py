@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import csv
 import re
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
 
 
-DEFAULT_TOP_GROUP_EXAMPLES = 5
-DEFAULT_OTHER_GROUP_EXAMPLES = 2
-DEFAULT_EXCERPT_CHARACTER_LIMIT = 500
+DEFAULT_TOP_GROUP_EXAMPLES = 20
+DEFAULT_OTHER_GROUP_EXAMPLES = 10
+DEFAULT_EXCERPT_CHARACTER_LIMIT = None
 
 
 class HighScoringTextsError(RuntimeError):
@@ -36,7 +37,7 @@ class HighScoringTextsSummary:
     selected_text_count: int
     top_group_examples: int
     other_group_examples: int
-    excerpt_character_limit: int
+    excerpt_character_limit: int | None
     source_excerpt_count: int
     missing_source_count: int
     markdown_example_count: int
@@ -56,7 +57,7 @@ def generate_high_scoring_text_examples(
     corpus_directory: Path | None = None,
     top_group_examples: int = DEFAULT_TOP_GROUP_EXAMPLES,
     other_group_examples: int = DEFAULT_OTHER_GROUP_EXAMPLES,
-    excerpt_character_limit: int = DEFAULT_EXCERPT_CHARACTER_LIMIT,
+    excerpt_character_limit: int | None = DEFAULT_EXCERPT_CHARACTER_LIMIT,
     development_backend_source: bool = True,
 ) -> HighScoringTextsSummary:
     """Generate high positive/negative text examples for each factor."""
@@ -68,7 +69,7 @@ def generate_high_scoring_text_examples(
         msg = "Other-group examples must not be negative."
         raise HighScoringTextsError(msg)
 
-    if excerpt_character_limit < 0:
+    if excerpt_character_limit is not None and excerpt_character_limit < 0:
         msg = "Excerpt character limit must not be negative."
         raise HighScoringTextsError(msg)
 
@@ -516,7 +517,7 @@ def _resolve_source_path(corpus_directory: Path | None, relative_path: str) -> P
     return corpus_directory / relative_path
 
 
-def _read_excerpt(source_path: Path, character_limit: int) -> str:
+def _read_excerpt(source_path: Path, character_limit: int | None) -> str:
     """Read a source text excerpt."""
     if character_limit == 0:
         return ""
@@ -527,6 +528,9 @@ def _read_excerpt(source_path: Path, character_limit: int) -> str:
         return ""
 
     text = " ".join(text.split())
+
+    if character_limit is None:
+        return text
 
     return text[:character_limit]
 
@@ -655,6 +659,9 @@ def _write_markdown_examples(
         output_directory: Path,
 ) -> int:
     """Write one Markdown file per selected example."""
+    if output_directory.exists():
+        shutil.rmtree(output_directory)
+
     output_directory.mkdir(parents=True, exist_ok=True)
 
     counters: dict[str, int] = {}
