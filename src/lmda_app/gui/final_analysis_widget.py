@@ -20,6 +20,12 @@ from lmda_app.statistics.final_factor_analysis import (
     compute_final_factor_analysis,
 )
 
+from lmda_app.statistics.factor_scoring import (
+    FactorScoringError,
+    FactorScoringSummary,
+    compute_factor_scores,
+)
+
 from lmda_app.statistics.loading_assignment import (
     DEFAULT_LOADING_CUTOFF,
     LoadingAssignmentError,
@@ -32,6 +38,7 @@ class FinalAnalysisWidget(QWidget):
 
     final_factor_analysis_computed = Signal(FinalFactorAnalysisSummary)
     loading_assignment_computed = Signal(LoadingAssignmentSummary)
+    factor_scores_computed = Signal(FactorScoringSummary)
 
     def __init__(self, parent=None) -> None:  # noqa: ANN001
         super().__init__(parent)
@@ -40,9 +47,12 @@ class FinalAnalysisWidget(QWidget):
         self.reduced_correlation_matrix_path: Path | None = None
         self.selected_factor_count: int | None = None
         self.final_rotated_factor_pattern_path: Path | None = None
+        self.statistical_matrix_path: Path | None = None
+        self.factor_pole_assignments_path: Path | None = None
 
         self.run_button = QPushButton("Run Final Factor Analysis")
         self.assign_loadings_button = QPushButton("Assign Factor Poles")
+        self.score_factors_button = QPushButton("Compute Factor Scores")
         self.progress_bar = QProgressBar()
         self.progress_label = QLabel("Ready")
         self.summary_text = QTextEdit()
@@ -71,6 +81,7 @@ class FinalAnalysisWidget(QWidget):
 
         self.run_button.clicked.connect(self._run_final_factor_analysis)
         self.assign_loadings_button.clicked.connect(self._assign_factor_poles)
+        self.score_factors_button.clicked.connect(self._compute_factor_scores)
 
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
@@ -83,6 +94,7 @@ class FinalAnalysisWidget(QWidget):
         root_layout.addWidget(warning)
         root_layout.addWidget(self.run_button)
         root_layout.addWidget(self.assign_loadings_button)
+        root_layout.addWidget(self.score_factors_button)
         root_layout.addWidget(self.progress_label)
         root_layout.addWidget(self.progress_bar)
         root_layout.addWidget(summary_group, stretch=1)
@@ -93,12 +105,16 @@ class FinalAnalysisWidget(QWidget):
         reduced_correlation_matrix_path: Path | None,
         selected_factor_count: int | None,
         final_rotated_factor_pattern_path: Path | None = None,
+        statistical_matrix_path: Path | None = None,
+        factor_pole_assignments_path: Path | None = None,
     ) -> None:
         """Set project context for final factor analysis."""
         self.project_directory = project_directory
         self.reduced_correlation_matrix_path = reduced_correlation_matrix_path
         self.selected_factor_count = selected_factor_count
         self.final_rotated_factor_pattern_path = final_rotated_factor_pattern_path
+        self.statistical_matrix_path = statistical_matrix_path
+        self.factor_pole_assignments_path = factor_pole_assignments_path
 
     def _run_final_factor_analysis(self) -> None:
         """Run final factor analysis."""
@@ -205,17 +221,77 @@ class FinalAnalysisWidget(QWidget):
 
         self._set_processing_ui("Factor pole assignment complete", is_processing=False)
         self._display_loading_assignment_summary(summary)
+        self.factor_pole_assignments_path = summary.assignment_output_path
         self.loading_assignment_computed.emit(summary)
 
+    def _compute_factor_scores(self) -> None:
+        """Compute pole-based factor scores."""
+        if self.project_directory is None:
+            QMessageBox.warning(
+                self,
+                "No project",
+                "Create or open a project before computing factor scores.",
+            )
+            return
+
+        if self.statistical_matrix_path is None or not self.statistical_matrix_path.exists():
+            QMessageBox.warning(
+                self,
+                "Missing statistical matrix",
+                "Prepare statistical input before computing factor scores.",
+            )
+            return
+
+        if (
+            self.factor_pole_assignments_path is None
+            or not self.factor_pole_assignments_path.exists()
+        ):
+            QMessageBox.warning(
+                self,
+                "Missing factor/pole assignments",
+                "Assign factor poles before computing factor scores.",
+            )
+            return
+
+        output_directory = self.project_directory / "statistics"
+
+        self._set_processing_ui("Computing factor scores...", is_processing=True)
+
+        try:
+            summary = compute_factor_scores(
+                statistical_matrix_path=self.statistical_matrix_path,
+                assignment_table_path=self.factor_pole_assignments_path,
+                output_directory=output_directory,
+                development_backend_source=True,
+            )
+        except (OSError, FactorScoringError) as exc:
+            self._set_processing_ui(
+                "Factor scoring failed",
+                is_processing=False,
+                complete=False,
+            )
+            QMessageBox.critical(
+                self,
+                "Could not compute factor scores",
+                str(exc),
+            )
+            return
+
+        self._set_processing_ui("Factor scoring complete", is_processing=False)
+        self._display_factor_scoring_summary(summary)
+        self.factor_scores_computed.emit(summary)
+
     def _set_processing_ui(
-            self,
-            message: str,
-            *,
-            is_processing: bool,
-            complete: bool = True,
+        self,
+        message: str,
+        *,
+        is_processing: bool,
+        complete: bool = True,
     ) -> None:
         """Update processing UI."""
         self.run_button.setDisabled(is_processing)
+        self.assign_loadings_button.setDisabled(is_processing)
+        self.score_factors_button.setDisabled(is_processing)
         self.progress_label.setText(message)
 
         if is_processing:
@@ -281,6 +357,37 @@ class FinalAnalysisWidget(QWidget):
             f"Summary: {summary.summary_output_path}",
             "",
             "These assignments are downstream of the current development final-analysis backend.",
+        ]
+
+        self.summary_text.setPlainText("\n".join(lines))
+
+    def _display_factor_scoring_summary(
+        self,
+        summary: FactorScoringSummary,
+    ) -> None:
+        """Display factor scoring summary."""
+        lines = [
+            "Factor scoring complete",
+            "",
+            "Development backend source: yes"
+            if summary.development_backend_source
+            else "Development backend source: no",
+            "",
+            f"Texts scored: {summary.text_count}",
+            f"Factors: {summary.factor_count}",
+            f"Matrix variables: {summary.matrix_variable_count}",
+            f"Assigned variables: {summary.assigned_variable_count}",
+            f"Scored variables: {summary.scored_variable_count}",
+            f"Missing assigned variables: {summary.missing_assigned_variable_count}",
+            "",
+            f"Statistical matrix: {summary.statistical_matrix_path}",
+            f"Assignment table: {summary.assignment_table_path}",
+            f"Full scores: {summary.full_scores_output_path}",
+            f"Scores only: {summary.scores_only_output_path}",
+            f"Summary: {summary.summary_output_path}",
+            "",
+            "Scores use pole-based scoring: positive variables +1, "
+            "negative variables -1, unloaded variables 0.",
         ]
 
         self.summary_text.setPlainText("\n".join(lines))

@@ -50,6 +50,7 @@ from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
 from lmda_app.nlp.processed_tokens import ProcessingSummary
 from lmda_app.statistics.correlation import CorrelationSummary
 from lmda_app.statistics.eigen_analysis import EigenAnalysisSummary
+from lmda_app.statistics.factor_scoring import FactorScoringSummary
 from lmda_app.statistics.final_factor_analysis import FinalFactorAnalysisSummary
 from lmda_app.statistics.initial_factor_extraction import InitialFactorExtractionSummary
 from lmda_app.statistics.loading_assignment import LoadingAssignmentSummary
@@ -242,6 +243,10 @@ class MainWindow(QMainWindow):
         )
         self.final_analysis_widget.loading_assignment_computed.connect(
             self._on_loading_assignment_computed
+        )
+
+        self.final_analysis_widget.factor_scores_computed.connect(
+            self._on_factor_scores_computed
         )
 
     def _create_placeholder_widget(self) -> QWidget:
@@ -437,9 +442,9 @@ class MainWindow(QMainWindow):
                 project_directory=self.state.project_directory,
                 reduced_correlation_matrix_path=self._get_reduced_correlation_matrix_path(),
                 selected_factor_count=self._get_selected_factor_count(),
-                final_rotated_factor_pattern_path=(
-                    self._get_final_rotated_factor_pattern_path()
-                ),
+                final_rotated_factor_pattern_path=(self._get_final_rotated_factor_pattern_path()),
+                statistical_matrix_path=self._get_reduced_statistical_matrix_path(),
+                factor_pole_assignments_path=self._get_factor_pole_assignments_path(),
             )
             return
 
@@ -602,6 +607,9 @@ class MainWindow(QMainWindow):
             self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
 
         if self._get_factor_pole_assignments_path() is not None:
+            self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
+
+        if self._get_factor_scores_path() is not None:
             self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
@@ -1306,8 +1314,8 @@ class MainWindow(QMainWindow):
         )
 
     def _on_loading_assignment_computed(
-            self,
-            summary: LoadingAssignmentSummary,
+        self,
+        summary: LoadingAssignmentSummary,
     ) -> None:
         """Handle completed loading assignment."""
         if self.state.project is None:
@@ -1354,6 +1362,51 @@ class MainWindow(QMainWindow):
             f"{summary.assigned_variable_count} assigned, "
             f"{summary.unloaded_variable_count} unloaded, "
             f"cutoff {summary.loading_cutoff:.2f}. "
+            "Source backend: development."
+        )
+
+    def _on_factor_scores_computed(self, summary: FactorScoringSummary) -> None:
+        """Handle completed factor scoring."""
+        if self.state.project is None:
+            QMessageBox.warning(
+                self,
+                "No active project",
+                "Create or open a project before computing factor scores.",
+            )
+            return
+
+        self.state.project.output_paths["factor_scores_full"] = str(
+            summary.full_scores_output_path
+        )
+        self.state.project.output_paths["factor_scores"] = str(
+            summary.scores_only_output_path
+        )
+        self.state.project.output_paths["factor_scoring_summary"] = str(
+            summary.summary_output_path
+        )
+        self.state.project.settings["factor_scoring"] = {
+            "text_count": summary.text_count,
+            "factor_count": summary.factor_count,
+            "matrix_variable_count": summary.matrix_variable_count,
+            "assigned_variable_count": summary.assigned_variable_count,
+            "scored_variable_count": summary.scored_variable_count,
+            "missing_assigned_variable_count": summary.missing_assigned_variable_count,
+            "development_backend_source": summary.development_backend_source,
+            "method": "pole_based_binary_presence",
+        }
+
+        self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
+        self._save_project_after_stage("factor scoring")
+        self._populate_workflow_navigation()
+        self._select_stage_by_key("final_analysis")
+
+        self.log_message(f"Full factor scores written to: {summary.full_scores_output_path}")
+        self.log_message(f"Factor scores written to: {summary.scores_only_output_path}")
+        self.log_message(
+            "Factor scoring summary: "
+            f"{summary.text_count} texts, "
+            f"{summary.factor_count} factors, "
+            f"{summary.scored_variable_count} scored variables. "
             "Source backend: development."
         )
 
@@ -1504,6 +1557,10 @@ class MainWindow(QMainWindow):
     def _get_factor_pole_assignments_path(self) -> Path | None:
         """Return factor/pole assignments path if it exists."""
         return self._get_output_path("factor_pole_assignments")
+
+    def _get_factor_scores_path(self) -> Path | None:
+        """Return factor scores path if it exists."""
+        return self._get_output_path("factor_scores")
 
     def _update_window_title(self) -> None:
         """Update the main window title."""

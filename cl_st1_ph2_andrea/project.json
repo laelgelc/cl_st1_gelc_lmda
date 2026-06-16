@@ -2,7 +2,7 @@
   "name": "cl_st1_ph2_andrea",
   "directory": "cl_st1_ph2_andrea",
   "created_at": "2026-06-12T19:24:06",
-  "updated_at": "2026-06-15T20:51:50",
+  "updated_at": "2026-06-15T23:58:18",
   "corpus_directory": "/home/eyamrog/PycharmProjects/cl_st1_andrea/cl_st1_ph2_andrea/corpus/commercial_verbal",
   "settings": {
     "corpus_validation": {
@@ -141,6 +141,16 @@
       "positive_pole_count": 13,
       "negative_pole_count": 16,
       "development_backend_source": true
+    },
+    "factor_scoring": {
+      "text_count": 822,
+      "factor_count": 5,
+      "matrix_variable_count": 32,
+      "assigned_variable_count": 29,
+      "scored_variable_count": 29,
+      "missing_assigned_variable_count": 0,
+      "development_backend_source": true,
+      "method": "pole_based_binary_presence"
     }
   },
   "output_paths": {
@@ -177,6 +187,9 @@
     "final_factor_analysis_summary": "cl_st1_ph2_andrea/statistics/final_factor_analysis_summary.tsv",
     "factor_pole_assignments": "cl_st1_ph2_andrea/statistics/factor_pole_assignments.tsv",
     "factor_pole_loading_lists": "cl_st1_ph2_andrea/statistics/factor_pole_loading_lists.tsv",
-    "loading_assignment_summary": "cl_st1_ph2_andrea/statistics/loading_assignment_summary.tsv"
+    "loading_assignment_summary": "cl_st1_ph2_andrea/statistics/loading_assignment_summary.tsv",
+    "factor_scores_full": "cl_st1_ph2_andrea/statistics/factor_scores_full.tsv",
+    "factor_scores": "cl_st1_ph2_andrea/statistics/factor_scores.tsv",
+    "factor_scoring_summary": "cl_st1_ph2_andrea/statistics/factor_scoring_summary.tsv"
   }
 }
