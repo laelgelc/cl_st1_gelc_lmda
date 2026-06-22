@@ -6,6 +6,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "PySide6",
     "spacy",
+    "click",
     "numpy",
     "pandas",
     "matplotlib",
@@ -17,6 +18,9 @@ dev = [
     "pytest-qt",
     "ruff",
     "mypy",
+]
+
+build = [
     "pyinstaller",
 ]
 
