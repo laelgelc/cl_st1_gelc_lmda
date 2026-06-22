@@ -47,6 +47,7 @@ from lmda_app.gui.keyword_selection_widget import KeywordSelectionWidget
 from lmda_app.gui.matrix_widget import MatrixWidget
 from lmda_app.gui.nlp_settings_widget import NlpSettingsWidget
 from lmda_app.gui.project_setup_dialog import ProjectSetupDialog
+from lmda_app.gui.results_widget import ResultsWidget
 from lmda_app.nlp.processed_tokens import ProcessingSummary
 from lmda_app.statistics.correlation import CorrelationSummary
 from lmda_app.statistics.anova import AnovaSummary
@@ -81,6 +82,7 @@ class MainWindow(QMainWindow):
         self.factor_retention_widget = FactorRetentionWidget()
         self.communality_review_widget = CommunalityReviewWidget()
         self.final_analysis_widget = FinalAnalysisWidget()
+        self.results_widget = ResultsWidget()
         self.log_view = QPlainTextEdit()
         self.status_label = QLabel("Ready")
 
@@ -152,6 +154,9 @@ class MainWindow(QMainWindow):
         run_final_analysis_action = workflow_menu.addAction("Run Final Analysis")
         run_final_analysis_action.triggered.connect(self._select_final_analysis_stage)
 
+        results_action = workflow_menu.addAction("Results")
+        results_action.triggered.connect(self._select_results_stage)
+
         help_menu = menu_bar.addMenu("&Help")
 
         about_action = help_menu.addAction("About")
@@ -185,6 +190,7 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.factor_retention_widget)
         self.content_stack.addWidget(self.communality_review_widget)
         self.content_stack.addWidget(self.final_analysis_widget)
+        self.content_stack.addWidget(self.results_widget)
 
         main_splitter.addWidget(self.content_stack)
         main_splitter.setStretchFactor(0, 0)
@@ -349,6 +355,10 @@ class MainWindow(QMainWindow):
         """Select the Final Analysis workflow stage."""
         self._select_stage_by_key("final_analysis")
 
+    def _select_results_stage(self) -> None:
+        """Select the Results workflow stage."""
+        self._select_stage_by_key("results")
+
     def _on_workflow_stage_changed(self, row: int) -> None:
         """Update the central content when the selected workflow stage changes."""
         if row < 0:
@@ -460,6 +470,26 @@ class MainWindow(QMainWindow):
                 text_id_mapping_path=self._get_text_id_mapping_path(),
                 corpus_directory=self.state.corpus_directory,
             )
+            return
+
+        if stage.key == "results":
+            self.content_stack.setCurrentWidget(self.results_widget)
+
+            if self.state.project is None:
+                self.results_widget.set_project_context(
+                    project_directory=None,
+                    project_name=None,
+                    settings={},
+                    output_paths={},
+                )
+            else:
+                self.results_widget.set_project_context(
+                    project_directory=self.state.project_directory,
+                    project_name=self.state.project.name,
+                    settings=self.state.project.settings,
+                    output_paths=self.state.project.output_paths,
+                )
+
             return
 
         self.content_stack.setCurrentWidget(self.placeholder_widget)
@@ -672,6 +702,9 @@ class MainWindow(QMainWindow):
 
         if self._get_high_scoring_text_samples_path() is not None:
             self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
+
+        if self._has_results_outputs():
+            self.state.set_stage_status("results", WorkflowStageStatus.COMPLETE)
 
         self._populate_workflow_navigation()
         self._select_stage_by_key("project_setup")
@@ -1549,6 +1582,10 @@ class MainWindow(QMainWindow):
 
         self.state.set_stage_status("final_analysis", WorkflowStageStatus.COMPLETE)
         self._save_project_after_stage("high-scoring text examples")
+
+        if self._has_results_outputs():
+            self.state.set_stage_status("results", WorkflowStageStatus.COMPLETE)
+
         self._populate_workflow_navigation()
         self._select_stage_by_key("final_analysis")
 
@@ -1737,6 +1774,23 @@ class MainWindow(QMainWindow):
     def _get_high_scoring_text_samples_path(self) -> Path | None:
         """Return high-scoring text samples path if it exists."""
         return self._get_output_path("high_scoring_text_samples")
+
+    def _has_results_outputs(self) -> bool:
+        """Return whether enough final outputs exist to show the Results stage."""
+        result_output_keys = [
+            "final_rotated_factor_pattern",
+            "factor_pole_assignments",
+            "factor_scores",
+            "group_mean_factor_scores",
+            "anova_results",
+            "high_scoring_text_samples",
+            "communalities",
+        ]
+
+        return any(
+            self._get_output_path(output_key) is not None
+            for output_key in result_output_keys
+        )
 
     def _update_window_title(self) -> None:
         """Update the main window title."""

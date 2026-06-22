@@ -190,6 +190,7 @@ class RunSettingsTab(QWidget):
         self.table_view.setAlternatingRowColors(True)
 
         self.project_name: str | None = None
+        self.project_directory: Path | None = None
         self.settings: dict[str, Any] = {}
         self.output_paths: dict[str, str] = {}
 
@@ -216,11 +217,13 @@ class RunSettingsTab(QWidget):
             self,
             *,
             project_name: str | None,
+            project_directory: Path | None,
             settings: dict[str, Any],
             output_paths: dict[str, str],
     ) -> None:
         """Set project metadata for display."""
         self.project_name = project_name
+        self.project_directory = project_directory
         self.settings = settings
         self.output_paths = output_paths
         self.reload()
@@ -228,6 +231,12 @@ class RunSettingsTab(QWidget):
     def reload(self) -> None:
         """Reload settings table."""
         rows: list[list[str]] = []
+
+        if self.project_name is not None:
+            rows.append(["project", "", "name", self.project_name])
+
+        if self.project_directory is not None:
+            rows.append(["project", "", "directory", str(self.project_directory)])
 
         for stage, values in sorted(self.settings.items()):
             if isinstance(values, dict):
@@ -323,6 +332,7 @@ class ResultsWidget(QWidget):
 
         self.run_settings_tab.set_project_context(
             project_name=self.project_name,
+            project_directory=self.project_directory,
             settings=self.settings,
             output_paths=self.output_paths,
         )
@@ -339,7 +349,23 @@ class ResultsWidget(QWidget):
         if path.is_absolute():
             return path
 
-        return path
+        if path.exists():
+            return path
+
+        if self.project_directory is None:
+            return path
+
+        project_relative_path = self.project_directory / path
+
+        if project_relative_path.exists():
+            return project_relative_path
+
+        sibling_relative_path = self.project_directory.parent / path
+
+        if sibling_relative_path.exists():
+            return sibling_relative_path
+
+        return sibling_relative_path
 
 
 def _read_delimited_table(path: Path) -> tuple[list[str], list[list[str]]]:
