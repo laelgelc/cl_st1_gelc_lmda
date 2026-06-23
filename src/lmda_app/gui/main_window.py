@@ -1558,6 +1558,9 @@ class MainWindow(QMainWindow):
             )
             return
 
+        self.state.project.output_paths["high_scoring_text_samples"] = str(
+            summary.samples_output_path
+        )
         self.state.project.output_paths["high_scoring_score_details"] = str(
             summary.score_details_output_path
         )
@@ -1589,6 +1592,9 @@ class MainWindow(QMainWindow):
         self._populate_workflow_navigation()
         self._select_stage_by_key("final_analysis")
 
+        self.log_message(
+            f"High-scoring samples written to: {summary.samples_output_path}"
+        )
         self.log_message(
             f"High-scoring score details written to: {summary.score_details_output_path}"
         )
