@@ -1,0 +1,221 @@
+{
+  "name": "Visual LMDA - Pearson Correlation",
+  "directory": "1_test_projects/visual_lmda_pearson",
+  "created_at": "2026-06-23T07:41:57",
+  "updated_at": "2026-06-23T07:47:41",
+  "corpus_directory": "/home/eyamrog/PycharmProjects/cl_st1_andrea/cl_st1_ph3_andrea/corpus/commercial_visual",
+  "settings": {
+    "corpus_validation": {
+      "subcorpus_count": 8,
+      "text_count": 824,
+      "empty_count": 0,
+      "unreadable_count": 0,
+      "warnings": []
+    },
+    "nlp_processing": {
+      "processed_texts": 824,
+      "skipped_texts": 0,
+      "processed_tokens": 390996,
+      "retained_tokens": 383829,
+      "warnings": []
+    },
+    "lemma_presence": {
+      "selected_pos": [
+        "ADJ",
+        "NOUN",
+        "PROPN",
+        "VERB"
+      ],
+      "input_token_count": 383829,
+      "eligible_token_count": 183766,
+      "presence_record_count": 112494,
+      "unique_lemma_count": 7110,
+      "text_count": 824
+    },
+    "keylemmas": {
+      "subcorpus_count": 8,
+      "total_rows": 5422,
+      "positive_count": 857,
+      "negative_count": 195,
+      "not_keyword_count": 4370
+    },
+    "candidate_review": {
+      "candidate_count": 735,
+      "excluded_count": 5,
+      "source_table_count": 8
+    },
+    "keyword_selection": {
+      "per_subcorpus_quota": 250,
+      "max_total_before_deduplication": 1200,
+      "total_before_deduplication": 849,
+      "final_keyword_count": 728,
+      "duplicates_removed": 121
+    },
+    "binary_matrix": {
+      "text_count": 824,
+      "keyword_count": 728,
+      "non_zero_row_count": 824,
+      "all_zero_row_count": 0
+    },
+    "statistical_input": {
+      "total_text_count": 824,
+      "retained_text_count": 824,
+      "removed_all_zero_count": 0,
+      "keyword_count": 728
+    },
+    "correlation": {
+      "method": "phi",
+      "observation_count": 824,
+      "variable_count": 728,
+      "missing_values_replaced": 0,
+      "development_backend": true
+    },
+    "eigen_analysis": {
+      "variable_count": 728,
+      "component_count": 728,
+      "largest_eigenvalue": 15.532713882473839,
+      "smallest_eigenvalue": 0.002236714774206743,
+      "kaiser_component_count": 254,
+      "negative_eigenvalue_count": 0
+    },
+    "factor_retention": {
+      "selected_factor_count": 5,
+      "selection_method": "visual_scree_plot",
+      "eigenvalue_greater_than_one_count": 254,
+      "component_count": 728,
+      "notes": "Selected by visual inspection of scree plot."
+    },
+    "initial_factor_extraction": {
+      "method": "principal_components_from_correlation",
+      "selected_factor_count": 5,
+      "variable_count": 728,
+      "communality_min": 0.0013252909140249911,
+      "communality_max": 0.5417500365831404,
+      "communality_mean": 0.06383454095756562
+    },
+    "communality_review": {
+      "threshold": 0.15,
+      "variable_count": 728,
+      "excluded_variable_count": 656,
+      "retained_variable_count": 72
+    },
+    "reduced_variable_matrix": {
+      "source_variable_count": 728,
+      "retained_variable_count": 72,
+      "removed_variable_count": 656,
+      "observation_count": 824,
+      "source_matrix": "1_test_projects/visual_lmda_pearson/statistics/statistical_matrix.tsv",
+      "retained_variables": "1_test_projects/visual_lmda_pearson/statistics/retained_variables_after_communality.tsv"
+    },
+    "reduced_correlation": {
+      "method": "phi",
+      "observation_count": 824,
+      "variable_count": 72,
+      "missing_values_replaced": 0,
+      "development_backend": true
+    },
+    "reduced_eigen_analysis": {
+      "variable_count": 72,
+      "component_count": 72,
+      "largest_eigenvalue": 7.96430244497293,
+      "smallest_eigenvalue": 0.12913553968553165,
+      "kaiser_component_count": 20,
+      "negative_eigenvalue_count": 0
+    },
+    "final_factor_analysis": {
+      "method": "pca_style_extraction_from_correlation_development_backend",
+      "rotation_method": "promax_power_4_after_varimax",
+      "development_backend": true,
+      "selected_factor_count": 5,
+      "variable_count": 72,
+      "largest_unrotated_loading_abs": 0.9074216535419032,
+      "largest_rotated_loading_abs": 0.920026833133972,
+      "factor_correlation_max_abs_off_diagonal": 0.45801491300364605
+    },
+    "loading_assignment": {
+      "loading_cutoff": 0.3,
+      "factor_count": 5,
+      "variable_count": 72,
+      "assigned_variable_count": 48,
+      "unloaded_variable_count": 24,
+      "positive_pole_count": 24,
+      "negative_pole_count": 24,
+      "development_backend_source": true
+    },
+    "factor_scoring": {
+      "text_count": 824,
+      "factor_count": 5,
+      "matrix_variable_count": 72,
+      "assigned_variable_count": 48,
+      "scored_variable_count": 48,
+      "missing_assigned_variable_count": 0,
+      "development_backend_source": true,
+      "method": "pole_based_binary_presence"
+    },
+    "anova": {
+      "group_variable": "subcorpus",
+      "text_count": 824,
+      "group_count": 8,
+      "factor_count": 5,
+      "development_backend_source": true
+    },
+    "high_scoring_texts": {
+      "factor_count": 5,
+      "selected_text_count": 751,
+      "top_group_examples": 20,
+      "other_group_examples": 10,
+      "excerpt_character_limit": null,
+      "source_excerpt_count": 751,
+      "missing_source_count": 0,
+      "markdown_example_count": 751,
+      "development_backend_source": true,
+      "selection_method": "pole_ranked_groups_then_score_extremes"
+    }
+  },
+  "output_paths": {
+    "text_id_mapping": "1_test_projects/visual_lmda_pearson/processed/text_id_mapping.tsv",
+    "processed_tokens": "1_test_projects/visual_lmda_pearson/processed/processed_tokens.tsv",
+    "lemma_presence": "1_test_projects/visual_lmda_pearson/processed/lemma_presence.tsv",
+    "keylemmas": "1_test_projects/visual_lmda_pearson/keylemmas",
+    "candidate_keylemmas": "1_test_projects/visual_lmda_pearson/review/candidate_keylemmas.tsv",
+    "excluded_lemmas": "1_test_projects/visual_lmda_pearson/review/excluded_lemmas.txt",
+    "keywords": "1_test_projects/visual_lmda_pearson/keywords",
+    "final_keywords": "1_test_projects/visual_lmda_pearson/keywords/keywords.txt",
+    "keyword_selection_summary": "1_test_projects/visual_lmda_pearson/keywords/keyword_selection_summary.tsv",
+    "binary_matrix": "1_test_projects/visual_lmda_pearson/matrix/binary_matrix.tsv",
+    "keyword_id_mapping": "1_test_projects/visual_lmda_pearson/matrix/keyword_id_mapping.tsv",
+    "all_zero_rows": "1_test_projects/visual_lmda_pearson/matrix/all_zero_rows.tsv",
+    "statistical_matrix": "1_test_projects/visual_lmda_pearson/statistics/statistical_matrix.tsv",
+    "statistical_matrix_metadata": "1_test_projects/visual_lmda_pearson/statistics/statistical_matrix_metadata.tsv",
+    "all_zero_rows_for_statistics": "1_test_projects/visual_lmda_pearson/statistics/all_zero_rows_for_statistics.tsv",
+    "correlation_matrix": "1_test_projects/visual_lmda_pearson/statistics/correlation_matrix.tsv",
+    "eigenvalues": "1_test_projects/visual_lmda_pearson/statistics/eigenvalues.tsv",
+    "scree_plot": "1_test_projects/visual_lmda_pearson/statistics/scree_plot.tsv",
+    "initial_factor_loadings": "1_test_projects/visual_lmda_pearson/statistics/initial_factor_loadings.tsv",
+    "communalities": "1_test_projects/visual_lmda_pearson/statistics/communalities.tsv",
+    "communality_review": "1_test_projects/visual_lmda_pearson/statistics/communality_review.tsv",
+    "low_communality_variables": "1_test_projects/visual_lmda_pearson/statistics/low_communality_variables.tsv",
+    "retained_variables_after_communality": "1_test_projects/visual_lmda_pearson/statistics/retained_variables_after_communality.tsv",
+    "reduced_statistical_matrix": "1_test_projects/visual_lmda_pearson/statistics/reduced_statistical_matrix.tsv",
+    "reduced_correlation_matrix": "1_test_projects/visual_lmda_pearson/statistics/reduced_correlation_matrix.tsv",
+    "reduced_eigenvalues": "1_test_projects/visual_lmda_pearson/statistics/reduced_eigenvalues.tsv",
+    "reduced_scree_plot": "1_test_projects/visual_lmda_pearson/statistics/reduced_scree_plot.tsv",
+    "final_unrotated_factor_loadings": "1_test_projects/visual_lmda_pearson/statistics/final_unrotated_factor_loadings.tsv",
+    "final_rotated_factor_pattern": "1_test_projects/visual_lmda_pearson/statistics/final_rotated_factor_pattern.tsv",
+    "final_factor_correlation_matrix": "1_test_projects/visual_lmda_pearson/statistics/final_factor_correlation_matrix.tsv",
+    "final_factor_analysis_summary": "1_test_projects/visual_lmda_pearson/statistics/final_factor_analysis_summary.tsv",
+    "factor_pole_assignments": "1_test_projects/visual_lmda_pearson/statistics/factor_pole_assignments.tsv",
+    "factor_pole_loading_lists": "1_test_projects/visual_lmda_pearson/statistics/factor_pole_loading_lists.tsv",
+    "loading_assignment_summary": "1_test_projects/visual_lmda_pearson/statistics/loading_assignment_summary.tsv",
+    "factor_scores_full": "1_test_projects/visual_lmda_pearson/statistics/factor_scores_full.tsv",
+    "factor_scores": "1_test_projects/visual_lmda_pearson/statistics/factor_scores.tsv",
+    "factor_scoring_summary": "1_test_projects/visual_lmda_pearson/statistics/factor_scoring_summary.tsv",
+    "anova_results": "1_test_projects/visual_lmda_pearson/statistics/anova_results.tsv",
+    "group_mean_factor_scores": "1_test_projects/visual_lmda_pearson/statistics/group_mean_factor_scores.tsv",
+    "anova_summary": "1_test_projects/visual_lmda_pearson/statistics/anova_summary.tsv",
+    "high_scoring_text_samples": "1_test_projects/visual_lmda_pearson/statistics/high_scoring_text_samples.tsv",
+    "high_scoring_score_details": "1_test_projects/visual_lmda_pearson/statistics/high_scoring_score_details.tsv",
+    "high_scoring_markdown_examples": "1_test_projects/visual_lmda_pearson/statistics/high_scoring_markdown_examples",
+    "high_scoring_texts_summary": "1_test_projects/visual_lmda_pearson/statistics/high_scoring_texts_summary.tsv"
+  }
+}

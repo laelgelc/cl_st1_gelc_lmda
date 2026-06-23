@@ -1,0 +1,12 @@
+field	value
+rotated_pattern_path	1_test_projects/visual_lmda_pearson/statistics/final_rotated_factor_pattern.tsv
+assignment_output_path	1_test_projects/visual_lmda_pearson/statistics/factor_pole_assignments.tsv
+loading_lists_output_path	1_test_projects/visual_lmda_pearson/statistics/factor_pole_loading_lists.tsv
+loading_cutoff	0.3000000000
+factor_count	5
+variable_count	72
+assigned_variable_count	48
+unloaded_variable_count	24
+positive_pole_count	24
+negative_pole_count	24
+development_backend_source	true
