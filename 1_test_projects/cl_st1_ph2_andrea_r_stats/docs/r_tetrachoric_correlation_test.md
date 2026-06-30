@@ -1,5 +1,5 @@
 User:
-Please consider this document and the specific selection. I'd like to perform a simple test by computing the correlation matrix externally with R. Would it work if I took the same statistical input, processed it in R using tetrachoric/polychoric correlation, and replaced the original `phi/perason` `cl_st1_ph2_andrea/statistics/correlation_matrix.tsv` file by the R-processed one?
+Please consider this document and the specific selection. I'd like to perform a simple test by computing the correlation matrix externally with R. Would it work if I took the same statistical input, processed it in R using tetrachoric/polychoric correlation, and replaced the original `phi/perason` `1_test_projects/cl_st1_ph2_andrea_ori/statistics/correlation_matrix.tsv` file by the R-processed one?
 
 Assistant: 
 Yes — **as a simple external test, that should work**, provided the R-generated file matches the exact format and numerical assumptions expected by the later stages.
@@ -7,7 +7,7 @@ Yes — **as a simple external test, that should work**, provided the R-generate
 The app’s downstream eigen-analysis does **not appear to care whether the matrix was produced by the internal phi/Pearson backend or by R**. It reads:
 
 ```text
-cl_st1_ph2_andrea/statistics/correlation_matrix.tsv
+1_test_projects/cl_st1_ph2_andrea_ori/statistics/correlation_matrix.tsv
 ```
 
 as a TSV matrix with:
@@ -71,7 +71,7 @@ The important requirements are:
 For this test, yes, use the same statistical input:
 
 ```text
-cl_st1_ph2_andrea/statistics/statistical_matrix.tsv
+1_test_projects/cl_st1_ph2_andrea_ori/statistics/statistical_matrix.tsv
 ```
 
 That file has:
@@ -89,7 +89,7 @@ In R, you should ignore/drop `text_id` and compute correlations only on the `v00
 If you simply replace:
 
 ```text
-cl_st1_ph2_andrea/statistics/correlation_matrix.tsv
+1_test_projects/cl_st1_ph2_andrea_ori/statistics/correlation_matrix.tsv
 ```
 
 the project metadata may still say the correlation method was:
@@ -123,13 +123,13 @@ That would not necessarily mean the file format failed; it may reflect the stati
 Do it, but keep a backup first:
 
 ```text
-cl_st1_ph2_andrea/statistics/correlation_matrix_phi_backup.tsv
+1_test_projects/cl_st1_ph2_andrea_ori/statistics/correlation_matrix_phi_backup.tsv
 ```
 
 Then replace:
 
 ```text
-cl_st1_ph2_andrea/statistics/correlation_matrix.tsv
+1_test_projects/cl_st1_ph2_andrea_ori/statistics/correlation_matrix.tsv
 ```
 
 with the R-generated tetrachoric/polychoric version.
@@ -137,8 +137,8 @@ with the R-generated tetrachoric/polychoric version.
 After replacement, rerun eigen-analysis and compare:
 
 ```text
-cl_st1_ph2_andrea/statistics/eigenvalues.tsv
-cl_st1_ph2_andrea/statistics/scree_plot.tsv
+1_test_projects/cl_st1_ph2_andrea_ori/statistics/eigenvalues.tsv
+1_test_projects/cl_st1_ph2_andrea_ori/statistics/scree_plot.tsv
 ```
 
 against the current phi/Pearson-based outputs.
@@ -212,7 +212,7 @@ That separation is especially useful because the main app project currently reco
 1. Copy this file into the R project input folder:
 
 ```text
-cl_st1_ph2_andrea/statistics/statistical_matrix.tsv
+1_test_projects/cl_st1_ph2_andrea_ori/statistics/statistical_matrix.tsv
 ```
 
 as:
@@ -234,7 +234,7 @@ cl_st1_ph2_andrea_r_stats/output/correlation_matrix.tsv
 5. Only then copy it over the app file for testing:
 
 ```text
-cl_st1_ph2_andrea/statistics/correlation_matrix.tsv
+1_test_projects/cl_st1_ph2_andrea_ori/statistics/correlation_matrix.tsv
 ```
 
 after backing up the original.
@@ -1003,7 +1003,7 @@ cl_st1_ph2_andrea_r_stats/output/correlation_matrix.tsv
 That file should be safe to copy over the app’s:
 
 ```text
-cl_st1_ph2_andrea/statistics/correlation_matrix.tsv
+1_test_projects/cl_st1_ph2_andrea_ori/statistics/correlation_matrix.tsv
 ```
 
 after backing up the current phi/Pearson version.
@@ -1134,7 +1134,7 @@ cl_st1_ph2_andrea_r_stats/output/correlation_matrix.tsv
 and inspect it. But I would **not overwrite**:
 
 ```text
-cl_st1_ph2_andrea/statistics/correlation_matrix.tsv
+1_test_projects/cl_st1_ph2_andrea_ori/statistics/correlation_matrix.tsv
 ```
 
 with this version unless the goal is only to test failure modes or compare exploratory outputs.
