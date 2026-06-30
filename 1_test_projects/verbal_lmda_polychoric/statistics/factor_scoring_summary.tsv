@@ -1,0 +1,12 @@
+field	value
+statistical_matrix_path	1_test_projects/verbal_lmda_polychoric/statistics/reduced_statistical_matrix.tsv
+assignment_table_path	1_test_projects/verbal_lmda_polychoric/statistics/factor_pole_assignments.tsv
+full_scores_output_path	1_test_projects/verbal_lmda_polychoric/statistics/factor_scores_full.tsv
+scores_only_output_path	1_test_projects/verbal_lmda_polychoric/statistics/factor_scores.tsv
+text_count	822
+factor_count	8
+matrix_variable_count	267
+assigned_variable_count	65
+scored_variable_count	65
+missing_assigned_variable_count	0
+development_backend_source	true

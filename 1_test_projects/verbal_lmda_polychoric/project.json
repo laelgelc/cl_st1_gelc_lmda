@@ -1,0 +1,221 @@
+{
+  "name": "Verbal LMDA - Polychoric Correlation",
+  "directory": "1_test_projects/verbal_lmda_polychoric",
+  "created_at": "2026-06-30T11:29:44",
+  "updated_at": "2026-06-30T11:45:58",
+  "corpus_directory": "/home/eyamrog/PycharmProjects/cl_st1_andrea/cl_st1_ph2_andrea/corpus/commercial_verbal",
+  "settings": {
+    "corpus_validation": {
+      "subcorpus_count": 8,
+      "text_count": 824,
+      "empty_count": 0,
+      "unreadable_count": 0,
+      "warnings": []
+    },
+    "nlp_processing": {
+      "processed_texts": 824,
+      "skipped_texts": 0,
+      "processed_tokens": 79675,
+      "retained_tokens": 78851,
+      "warnings": []
+    },
+    "lemma_presence": {
+      "selected_pos": [
+        "ADJ",
+        "NOUN",
+        "PROPN",
+        "VERB"
+      ],
+      "input_token_count": 78851,
+      "eligible_token_count": 33866,
+      "presence_record_count": 23918,
+      "unique_lemma_count": 5557,
+      "text_count": 824
+    },
+    "keylemmas": {
+      "subcorpus_count": 8,
+      "total_rows": 1203,
+      "positive_count": 302,
+      "negative_count": 31,
+      "not_keyword_count": 870
+    },
+    "candidate_review": {
+      "candidate_count": 278,
+      "excluded_count": 1,
+      "source_table_count": 8
+    },
+    "keyword_selection": {
+      "per_subcorpus_quota": 250,
+      "max_total_before_deduplication": 1200,
+      "total_before_deduplication": 301,
+      "final_keyword_count": 277,
+      "duplicates_removed": 24
+    },
+    "binary_matrix": {
+      "text_count": 824,
+      "keyword_count": 277,
+      "non_zero_row_count": 822,
+      "all_zero_row_count": 2
+    },
+    "statistical_input": {
+      "total_text_count": 824,
+      "retained_text_count": 822,
+      "removed_all_zero_count": 2,
+      "keyword_count": 277
+    },
+    "correlation": {
+      "method": "phi",
+      "observation_count": 822,
+      "variable_count": 277,
+      "missing_values_replaced": 0,
+      "development_backend": true
+    },
+    "eigen_analysis": {
+      "variable_count": 277,
+      "component_count": 277,
+      "largest_eigenvalue": 35.067884735626585,
+      "smallest_eigenvalue": -127.37055840006474,
+      "kaiser_component_count": 122,
+      "negative_eigenvalue_count": 139
+    },
+    "factor_retention": {
+      "selected_factor_count": 8,
+      "selection_method": "visual_scree_plot",
+      "eigenvalue_greater_than_one_count": 122,
+      "component_count": 277,
+      "notes": "Selected by visual inspection of scree plot."
+    },
+    "initial_factor_extraction": {
+      "method": "principal_components_from_correlation",
+      "selected_factor_count": 8,
+      "variable_count": 277,
+      "communality_min": 0.059150910360752096,
+      "communality_max": 2.103716768740256,
+      "communality_mean": 0.7456056365161126
+    },
+    "communality_review": {
+      "threshold": 0.15,
+      "variable_count": 277,
+      "excluded_variable_count": 10,
+      "retained_variable_count": 267
+    },
+    "reduced_variable_matrix": {
+      "source_variable_count": 277,
+      "retained_variable_count": 267,
+      "removed_variable_count": 10,
+      "observation_count": 822,
+      "source_matrix": "1_test_projects/verbal_lmda_polychoric/statistics/statistical_matrix.tsv",
+      "retained_variables": "1_test_projects/verbal_lmda_polychoric/statistics/retained_variables_after_communality.tsv"
+    },
+    "reduced_correlation": {
+      "method": "phi",
+      "observation_count": 822,
+      "variable_count": 267,
+      "missing_values_replaced": 0,
+      "development_backend": true
+    },
+    "reduced_eigen_analysis": {
+      "variable_count": 267,
+      "component_count": 267,
+      "largest_eigenvalue": 6.111700994488714,
+      "smallest_eigenvalue": 0.062339655186411706,
+      "kaiser_component_count": 105,
+      "negative_eigenvalue_count": 0
+    },
+    "final_factor_analysis": {
+      "method": "pca_style_extraction_from_correlation_development_backend",
+      "rotation_method": "promax_power_4_after_varimax",
+      "development_backend": true,
+      "selected_factor_count": 8,
+      "variable_count": 267,
+      "largest_unrotated_loading_abs": 0.6185467444779925,
+      "largest_rotated_loading_abs": 0.7996645357859801,
+      "factor_correlation_max_abs_off_diagonal": 0.3113849558987821
+    },
+    "loading_assignment": {
+      "loading_cutoff": 0.3,
+      "factor_count": 8,
+      "variable_count": 267,
+      "assigned_variable_count": 65,
+      "unloaded_variable_count": 202,
+      "positive_pole_count": 10,
+      "negative_pole_count": 55,
+      "development_backend_source": true
+    },
+    "factor_scoring": {
+      "text_count": 822,
+      "factor_count": 8,
+      "matrix_variable_count": 267,
+      "assigned_variable_count": 65,
+      "scored_variable_count": 65,
+      "missing_assigned_variable_count": 0,
+      "development_backend_source": true,
+      "method": "pole_based_binary_presence"
+    },
+    "anova": {
+      "group_variable": "subcorpus",
+      "text_count": 822,
+      "group_count": 8,
+      "factor_count": 8,
+      "development_backend_source": true
+    },
+    "high_scoring_texts": {
+      "factor_count": 8,
+      "selected_text_count": 1035,
+      "top_group_examples": 20,
+      "other_group_examples": 10,
+      "excerpt_character_limit": null,
+      "source_excerpt_count": 1035,
+      "missing_source_count": 0,
+      "markdown_example_count": 1035,
+      "development_backend_source": true,
+      "selection_method": "pole_ranked_groups_then_score_extremes"
+    }
+  },
+  "output_paths": {
+    "text_id_mapping": "1_test_projects/verbal_lmda_polychoric/processed/text_id_mapping.tsv",
+    "processed_tokens": "1_test_projects/verbal_lmda_polychoric/processed/processed_tokens.tsv",
+    "lemma_presence": "1_test_projects/verbal_lmda_polychoric/processed/lemma_presence.tsv",
+    "keylemmas": "1_test_projects/verbal_lmda_polychoric/keylemmas",
+    "candidate_keylemmas": "1_test_projects/verbal_lmda_polychoric/review/candidate_keylemmas.tsv",
+    "excluded_lemmas": "1_test_projects/verbal_lmda_polychoric/review/excluded_lemmas.txt",
+    "keywords": "1_test_projects/verbal_lmda_polychoric/keywords",
+    "final_keywords": "1_test_projects/verbal_lmda_polychoric/keywords/keywords.txt",
+    "keyword_selection_summary": "1_test_projects/verbal_lmda_polychoric/keywords/keyword_selection_summary.tsv",
+    "binary_matrix": "1_test_projects/verbal_lmda_polychoric/matrix/binary_matrix.tsv",
+    "keyword_id_mapping": "1_test_projects/verbal_lmda_polychoric/matrix/keyword_id_mapping.tsv",
+    "all_zero_rows": "1_test_projects/verbal_lmda_polychoric/matrix/all_zero_rows.tsv",
+    "statistical_matrix": "1_test_projects/verbal_lmda_polychoric/statistics/statistical_matrix.tsv",
+    "statistical_matrix_metadata": "1_test_projects/verbal_lmda_polychoric/statistics/statistical_matrix_metadata.tsv",
+    "all_zero_rows_for_statistics": "1_test_projects/verbal_lmda_polychoric/statistics/all_zero_rows_for_statistics.tsv",
+    "correlation_matrix": "1_test_projects/verbal_lmda_polychoric/statistics/correlation_matrix.tsv",
+    "eigenvalues": "1_test_projects/verbal_lmda_polychoric/statistics/eigenvalues.tsv",
+    "scree_plot": "1_test_projects/verbal_lmda_polychoric/statistics/scree_plot.tsv",
+    "initial_factor_loadings": "1_test_projects/verbal_lmda_polychoric/statistics/initial_factor_loadings.tsv",
+    "communalities": "1_test_projects/verbal_lmda_polychoric/statistics/communalities.tsv",
+    "communality_review": "1_test_projects/verbal_lmda_polychoric/statistics/communality_review.tsv",
+    "low_communality_variables": "1_test_projects/verbal_lmda_polychoric/statistics/low_communality_variables.tsv",
+    "retained_variables_after_communality": "1_test_projects/verbal_lmda_polychoric/statistics/retained_variables_after_communality.tsv",
+    "reduced_statistical_matrix": "1_test_projects/verbal_lmda_polychoric/statistics/reduced_statistical_matrix.tsv",
+    "reduced_correlation_matrix": "1_test_projects/verbal_lmda_polychoric/statistics/reduced_correlation_matrix.tsv",
+    "reduced_eigenvalues": "1_test_projects/verbal_lmda_polychoric/statistics/reduced_eigenvalues.tsv",
+    "reduced_scree_plot": "1_test_projects/verbal_lmda_polychoric/statistics/reduced_scree_plot.tsv",
+    "final_unrotated_factor_loadings": "1_test_projects/verbal_lmda_polychoric/statistics/final_unrotated_factor_loadings.tsv",
+    "final_rotated_factor_pattern": "1_test_projects/verbal_lmda_polychoric/statistics/final_rotated_factor_pattern.tsv",
+    "final_factor_correlation_matrix": "1_test_projects/verbal_lmda_polychoric/statistics/final_factor_correlation_matrix.tsv",
+    "final_factor_analysis_summary": "1_test_projects/verbal_lmda_polychoric/statistics/final_factor_analysis_summary.tsv",
+    "factor_pole_assignments": "1_test_projects/verbal_lmda_polychoric/statistics/factor_pole_assignments.tsv",
+    "factor_pole_loading_lists": "1_test_projects/verbal_lmda_polychoric/statistics/factor_pole_loading_lists.tsv",
+    "loading_assignment_summary": "1_test_projects/verbal_lmda_polychoric/statistics/loading_assignment_summary.tsv",
+    "factor_scores_full": "1_test_projects/verbal_lmda_polychoric/statistics/factor_scores_full.tsv",
+    "factor_scores": "1_test_projects/verbal_lmda_polychoric/statistics/factor_scores.tsv",
+    "factor_scoring_summary": "1_test_projects/verbal_lmda_polychoric/statistics/factor_scoring_summary.tsv",
+    "anova_results": "1_test_projects/verbal_lmda_polychoric/statistics/anova_results.tsv",
+    "group_mean_factor_scores": "1_test_projects/verbal_lmda_polychoric/statistics/group_mean_factor_scores.tsv",
+    "anova_summary": "1_test_projects/verbal_lmda_polychoric/statistics/anova_summary.tsv",
+    "high_scoring_text_samples": "1_test_projects/verbal_lmda_polychoric/statistics/high_scoring_text_samples.tsv",
+    "high_scoring_score_details": "1_test_projects/verbal_lmda_polychoric/statistics/high_scoring_score_details.tsv",
+    "high_scoring_markdown_examples": "1_test_projects/verbal_lmda_polychoric/statistics/high_scoring_markdown_examples",
+    "high_scoring_texts_summary": "1_test_projects/verbal_lmda_polychoric/statistics/high_scoring_texts_summary.tsv"
+  }
+}
