@@ -3,10 +3,10 @@ rotated_pattern_path	1_test_projects/verbal_lmda_polychoric/statistics/final_rot
 assignment_output_path	1_test_projects/verbal_lmda_polychoric/statistics/factor_pole_assignments.tsv
 loading_lists_output_path	1_test_projects/verbal_lmda_polychoric/statistics/factor_pole_loading_lists.tsv
 loading_cutoff	0.3000000000
-factor_count	8
-variable_count	267
-assigned_variable_count	65
+factor_count	4
+variable_count	235
+assigned_variable_count	33
 unloaded_variable_count	202
 positive_pole_count	10
-negative_pole_count	55
+negative_pole_count	23
 development_backend_source	true

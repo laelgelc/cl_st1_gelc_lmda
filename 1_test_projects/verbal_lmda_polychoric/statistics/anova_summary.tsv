@@ -6,5 +6,5 @@ group_means_output_path	1_test_projects/verbal_lmda_polychoric/statistics/group_
 group_variable	subcorpus
 text_count	822
 group_count	8
-factor_count	8
+factor_count	4
 development_backend_source	true

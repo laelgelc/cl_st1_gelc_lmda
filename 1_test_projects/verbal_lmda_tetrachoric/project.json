@@ -2,7 +2,7 @@
   "name": "Verbal LMDA - Tetrachoric Correlation",
   "directory": "1_test_projects/verbal_lmda_tetrachoric",
   "created_at": "2026-06-23T01:51:43",
-  "updated_at": "2026-06-23T07:36:40",
+  "updated_at": "2026-06-30T12:18:11",
   "corpus_directory": "/home/eyamrog/PycharmProjects/cl_st1_andrea/cl_st1_ph2_andrea/corpus/commercial_verbal",
   "settings": {
     "corpus_validation": {
@@ -79,7 +79,7 @@
       "negative_eigenvalue_count": 52
     },
     "factor_retention": {
-      "selected_factor_count": 4,
+      "selected_factor_count": 2,
       "selection_method": "visual_scree_plot",
       "eigenvalue_greater_than_one_count": 86,
       "component_count": 277,
@@ -87,22 +87,22 @@
     },
     "initial_factor_extraction": {
       "method": "principal_components_from_correlation",
-      "selected_factor_count": 4,
+      "selected_factor_count": 2,
       "variable_count": 277,
-      "communality_min": 0.02099405626681092,
-      "communality_max": 0.5696735596220638,
-      "communality_mean": 0.21519373974993886
+      "communality_min": 0.0017934158072243078,
+      "communality_max": 0.44385514986293007,
+      "communality_mean": 0.17316057361000858
     },
     "communality_review": {
       "threshold": 0.15,
       "variable_count": 277,
-      "excluded_variable_count": 80,
-      "retained_variable_count": 197
+      "excluded_variable_count": 126,
+      "retained_variable_count": 151
     },
     "reduced_variable_matrix": {
       "source_variable_count": 277,
-      "retained_variable_count": 197,
-      "removed_variable_count": 80,
+      "retained_variable_count": 151,
+      "removed_variable_count": 126,
       "observation_count": 822,
       "source_matrix": "1_test_projects/verbal_lmda_tetrachoric/statistics/statistical_matrix.tsv",
       "retained_variables": "1_test_projects/verbal_lmda_tetrachoric/statistics/retained_variables_after_communality.tsv"
@@ -110,44 +110,44 @@
     "reduced_correlation": {
       "method": "phi",
       "observation_count": 822,
-      "variable_count": 197,
+      "variable_count": 151,
       "missing_values_replaced": 0,
       "development_backend": true
     },
     "reduced_eigen_analysis": {
-      "variable_count": 197,
-      "component_count": 197,
-      "largest_eigenvalue": 5.293879226225034,
-      "smallest_eigenvalue": 0.07441727986194147,
-      "kaiser_component_count": 78,
+      "variable_count": 151,
+      "component_count": 151,
+      "largest_eigenvalue": 4.604454968872629,
+      "smallest_eigenvalue": 0.08721150163661126,
+      "kaiser_component_count": 60,
       "negative_eigenvalue_count": 0
     },
     "final_factor_analysis": {
       "method": "pca_style_extraction_from_correlation_development_backend",
       "rotation_method": "promax_power_4_after_varimax",
       "development_backend": true,
-      "selected_factor_count": 4,
-      "variable_count": 197,
-      "largest_unrotated_loading_abs": 0.5849229896811415,
-      "largest_rotated_loading_abs": 0.7899987607467858,
-      "factor_correlation_max_abs_off_diagonal": 0.23854878223270493
+      "selected_factor_count": 2,
+      "variable_count": 151,
+      "largest_unrotated_loading_abs": 0.7171960926123492,
+      "largest_rotated_loading_abs": 0.7171303315021267,
+      "factor_correlation_max_abs_off_diagonal": 0.012664973665102535
     },
     "loading_assignment": {
       "loading_cutoff": 0.3,
-      "factor_count": 4,
-      "variable_count": 197,
-      "assigned_variable_count": 38,
-      "unloaded_variable_count": 159,
-      "positive_pole_count": 9,
-      "negative_pole_count": 29,
+      "factor_count": 2,
+      "variable_count": 151,
+      "assigned_variable_count": 23,
+      "unloaded_variable_count": 128,
+      "positive_pole_count": 0,
+      "negative_pole_count": 23,
       "development_backend_source": true
     },
     "factor_scoring": {
       "text_count": 822,
-      "factor_count": 4,
-      "matrix_variable_count": 197,
-      "assigned_variable_count": 38,
-      "scored_variable_count": 38,
+      "factor_count": 2,
+      "matrix_variable_count": 151,
+      "assigned_variable_count": 23,
+      "scored_variable_count": 23,
       "missing_assigned_variable_count": 0,
       "development_backend_source": true,
       "method": "pole_based_binary_presence"
@@ -156,18 +156,18 @@
       "group_variable": "subcorpus",
       "text_count": 822,
       "group_count": 8,
-      "factor_count": 4,
+      "factor_count": 2,
       "development_backend_source": true
     },
     "high_scoring_texts": {
-      "factor_count": 4,
-      "selected_text_count": 605,
+      "factor_count": 2,
+      "selected_text_count": 319,
       "top_group_examples": 20,
       "other_group_examples": 10,
       "excerpt_character_limit": null,
-      "source_excerpt_count": 605,
+      "source_excerpt_count": 319,
       "missing_source_count": 0,
-      "markdown_example_count": 605,
+      "markdown_example_count": 319,
       "development_backend_source": true,
       "selection_method": "pole_ranked_groups_then_score_extremes"
     }

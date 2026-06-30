@@ -1,0 +1,20 @@
+field	value
+factor_scores_path	ivacs_demo/statistics/factor_scores.tsv
+full_factor_scores_path	ivacs_demo/statistics/factor_scores_full.tsv
+metadata_path	ivacs_demo/statistics/statistical_matrix_metadata.tsv
+group_means_path	ivacs_demo/statistics/group_mean_factor_scores.tsv
+assignment_table_path	ivacs_demo/statistics/factor_pole_assignments.tsv
+keyword_id_mapping_path	ivacs_demo/matrix/keyword_id_mapping.tsv
+text_id_mapping_path	ivacs_demo/processed/text_id_mapping.tsv
+samples_output_path	ivacs_demo/statistics/high_scoring_text_samples.tsv
+score_details_output_path	ivacs_demo/statistics/high_scoring_score_details.tsv
+markdown_examples_output_directory	ivacs_demo/statistics/high_scoring_markdown_examples
+factor_count	5
+selected_text_count	636
+top_group_examples	20
+other_group_examples	10
+excerpt_character_limit	
+source_excerpt_count	636
+missing_source_count	0
+markdown_example_count	636
+development_backend_source	true

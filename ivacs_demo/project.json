@@ -1,0 +1,221 @@
+{
+  "name": "IVACS Demo",
+  "directory": "ivacs_demo",
+  "created_at": "2026-06-30T11:56:58",
+  "updated_at": "2026-06-30T12:06:24",
+  "corpus_directory": "/home/eyamrog/PycharmProjects/cl_st1_andrea/cl_st1_ph2_andrea/corpus/commercial_verbal",
+  "settings": {
+    "corpus_validation": {
+      "subcorpus_count": 8,
+      "text_count": 824,
+      "empty_count": 0,
+      "unreadable_count": 0,
+      "warnings": []
+    },
+    "nlp_processing": {
+      "processed_texts": 824,
+      "skipped_texts": 0,
+      "processed_tokens": 79675,
+      "retained_tokens": 78851,
+      "warnings": []
+    },
+    "lemma_presence": {
+      "selected_pos": [
+        "ADJ",
+        "NOUN",
+        "PROPN",
+        "VERB"
+      ],
+      "input_token_count": 78851,
+      "eligible_token_count": 33866,
+      "presence_record_count": 23918,
+      "unique_lemma_count": 5557,
+      "text_count": 824
+    },
+    "keylemmas": {
+      "subcorpus_count": 8,
+      "total_rows": 1203,
+      "positive_count": 302,
+      "negative_count": 31,
+      "not_keyword_count": 870
+    },
+    "candidate_review": {
+      "candidate_count": 278,
+      "excluded_count": 1,
+      "source_table_count": 8
+    },
+    "keyword_selection": {
+      "per_subcorpus_quota": 250,
+      "max_total_before_deduplication": 1200,
+      "total_before_deduplication": 301,
+      "final_keyword_count": 277,
+      "duplicates_removed": 24
+    },
+    "binary_matrix": {
+      "text_count": 824,
+      "keyword_count": 277,
+      "non_zero_row_count": 822,
+      "all_zero_row_count": 2
+    },
+    "statistical_input": {
+      "total_text_count": 824,
+      "retained_text_count": 822,
+      "removed_all_zero_count": 2,
+      "keyword_count": 277
+    },
+    "correlation": {
+      "method": "phi",
+      "observation_count": 822,
+      "variable_count": 277,
+      "missing_values_replaced": 0,
+      "development_backend": true
+    },
+    "eigen_analysis": {
+      "variable_count": 277,
+      "component_count": 277,
+      "largest_eigenvalue": 6.352370066581679,
+      "smallest_eigenvalue": 0.060256757591732574,
+      "kaiser_component_count": 107,
+      "negative_eigenvalue_count": 0
+    },
+    "factor_retention": {
+      "selected_factor_count": 5,
+      "selection_method": "visual_scree_plot",
+      "eigenvalue_greater_than_one_count": 107,
+      "component_count": 277,
+      "notes": "Selected by visual inspection of scree plot."
+    },
+    "initial_factor_extraction": {
+      "method": "principal_components_from_correlation",
+      "selected_factor_count": 5,
+      "variable_count": 277,
+      "communality_min": 0.0017241165662533994,
+      "communality_max": 0.6413366702096612,
+      "communality_mean": 0.07651257004909347
+    },
+    "communality_review": {
+      "threshold": 0.15,
+      "variable_count": 277,
+      "excluded_variable_count": 245,
+      "retained_variable_count": 32
+    },
+    "reduced_variable_matrix": {
+      "source_variable_count": 277,
+      "retained_variable_count": 32,
+      "removed_variable_count": 245,
+      "observation_count": 822,
+      "source_matrix": "ivacs_demo/statistics/statistical_matrix.tsv",
+      "retained_variables": "ivacs_demo/statistics/retained_variables_after_communality.tsv"
+    },
+    "reduced_correlation": {
+      "method": "phi",
+      "observation_count": 822,
+      "variable_count": 32,
+      "missing_values_replaced": 0,
+      "development_backend": true
+    },
+    "reduced_eigen_analysis": {
+      "variable_count": 32,
+      "component_count": 32,
+      "largest_eigenvalue": 3.434040017987452,
+      "smallest_eigenvalue": 0.13869123233208122,
+      "kaiser_component_count": 10,
+      "negative_eigenvalue_count": 0
+    },
+    "final_factor_analysis": {
+      "method": "pca_style_extraction_from_correlation_development_backend",
+      "rotation_method": "promax_power_4_after_varimax",
+      "development_backend": true,
+      "selected_factor_count": 5,
+      "variable_count": 32,
+      "largest_unrotated_loading_abs": 0.8239400129102036,
+      "largest_rotated_loading_abs": 0.8532299341867883,
+      "factor_correlation_max_abs_off_diagonal": 0.20913680622071337
+    },
+    "loading_assignment": {
+      "loading_cutoff": 0.3,
+      "factor_count": 5,
+      "variable_count": 32,
+      "assigned_variable_count": 29,
+      "unloaded_variable_count": 3,
+      "positive_pole_count": 13,
+      "negative_pole_count": 16,
+      "development_backend_source": true
+    },
+    "factor_scoring": {
+      "text_count": 822,
+      "factor_count": 5,
+      "matrix_variable_count": 32,
+      "assigned_variable_count": 29,
+      "scored_variable_count": 29,
+      "missing_assigned_variable_count": 0,
+      "development_backend_source": true,
+      "method": "pole_based_binary_presence"
+    },
+    "anova": {
+      "group_variable": "subcorpus",
+      "text_count": 822,
+      "group_count": 8,
+      "factor_count": 5,
+      "development_backend_source": true
+    },
+    "high_scoring_texts": {
+      "factor_count": 5,
+      "selected_text_count": 636,
+      "top_group_examples": 20,
+      "other_group_examples": 10,
+      "excerpt_character_limit": null,
+      "source_excerpt_count": 636,
+      "missing_source_count": 0,
+      "markdown_example_count": 636,
+      "development_backend_source": true,
+      "selection_method": "pole_ranked_groups_then_score_extremes"
+    }
+  },
+  "output_paths": {
+    "text_id_mapping": "ivacs_demo/processed/text_id_mapping.tsv",
+    "processed_tokens": "ivacs_demo/processed/processed_tokens.tsv",
+    "lemma_presence": "ivacs_demo/processed/lemma_presence.tsv",
+    "keylemmas": "ivacs_demo/keylemmas",
+    "candidate_keylemmas": "ivacs_demo/review/candidate_keylemmas.tsv",
+    "excluded_lemmas": "ivacs_demo/review/excluded_lemmas.txt",
+    "keywords": "ivacs_demo/keywords",
+    "final_keywords": "ivacs_demo/keywords/keywords.txt",
+    "keyword_selection_summary": "ivacs_demo/keywords/keyword_selection_summary.tsv",
+    "binary_matrix": "ivacs_demo/matrix/binary_matrix.tsv",
+    "keyword_id_mapping": "ivacs_demo/matrix/keyword_id_mapping.tsv",
+    "all_zero_rows": "ivacs_demo/matrix/all_zero_rows.tsv",
+    "statistical_matrix": "ivacs_demo/statistics/statistical_matrix.tsv",
+    "statistical_matrix_metadata": "ivacs_demo/statistics/statistical_matrix_metadata.tsv",
+    "all_zero_rows_for_statistics": "ivacs_demo/statistics/all_zero_rows_for_statistics.tsv",
+    "correlation_matrix": "ivacs_demo/statistics/correlation_matrix.tsv",
+    "eigenvalues": "ivacs_demo/statistics/eigenvalues.tsv",
+    "scree_plot": "ivacs_demo/statistics/scree_plot.tsv",
+    "initial_factor_loadings": "ivacs_demo/statistics/initial_factor_loadings.tsv",
+    "communalities": "ivacs_demo/statistics/communalities.tsv",
+    "communality_review": "ivacs_demo/statistics/communality_review.tsv",
+    "low_communality_variables": "ivacs_demo/statistics/low_communality_variables.tsv",
+    "retained_variables_after_communality": "ivacs_demo/statistics/retained_variables_after_communality.tsv",
+    "reduced_statistical_matrix": "ivacs_demo/statistics/reduced_statistical_matrix.tsv",
+    "reduced_correlation_matrix": "ivacs_demo/statistics/reduced_correlation_matrix.tsv",
+    "reduced_eigenvalues": "ivacs_demo/statistics/reduced_eigenvalues.tsv",
+    "reduced_scree_plot": "ivacs_demo/statistics/reduced_scree_plot.tsv",
+    "final_unrotated_factor_loadings": "ivacs_demo/statistics/final_unrotated_factor_loadings.tsv",
+    "final_rotated_factor_pattern": "ivacs_demo/statistics/final_rotated_factor_pattern.tsv",
+    "final_factor_correlation_matrix": "ivacs_demo/statistics/final_factor_correlation_matrix.tsv",
+    "final_factor_analysis_summary": "ivacs_demo/statistics/final_factor_analysis_summary.tsv",
+    "factor_pole_assignments": "ivacs_demo/statistics/factor_pole_assignments.tsv",
+    "factor_pole_loading_lists": "ivacs_demo/statistics/factor_pole_loading_lists.tsv",
+    "loading_assignment_summary": "ivacs_demo/statistics/loading_assignment_summary.tsv",
+    "factor_scores_full": "ivacs_demo/statistics/factor_scores_full.tsv",
+    "factor_scores": "ivacs_demo/statistics/factor_scores.tsv",
+    "factor_scoring_summary": "ivacs_demo/statistics/factor_scoring_summary.tsv",
+    "anova_results": "ivacs_demo/statistics/anova_results.tsv",
+    "group_mean_factor_scores": "ivacs_demo/statistics/group_mean_factor_scores.tsv",
+    "anova_summary": "ivacs_demo/statistics/anova_summary.tsv",
+    "high_scoring_text_samples": "ivacs_demo/statistics/high_scoring_text_samples.tsv",
+    "high_scoring_score_details": "ivacs_demo/statistics/high_scoring_score_details.tsv",
+    "high_scoring_markdown_examples": "ivacs_demo/statistics/high_scoring_markdown_examples",
+    "high_scoring_texts_summary": "ivacs_demo/statistics/high_scoring_texts_summary.tsv"
+  }
+}
