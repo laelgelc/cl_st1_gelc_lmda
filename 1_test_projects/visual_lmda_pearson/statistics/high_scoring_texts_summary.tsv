@@ -10,11 +10,11 @@ samples_output_path	1_test_projects/visual_lmda_pearson/statistics/high_scoring_
 score_details_output_path	1_test_projects/visual_lmda_pearson/statistics/high_scoring_score_details.tsv
 markdown_examples_output_directory	1_test_projects/visual_lmda_pearson/statistics/high_scoring_markdown_examples
 factor_count	5
-selected_text_count	751
+selected_text_count	856
 top_group_examples	20
 other_group_examples	10
 excerpt_character_limit	
-source_excerpt_count	751
+source_excerpt_count	856
 missing_source_count	0
-markdown_example_count	751
+markdown_example_count	856
 development_backend_source	true
