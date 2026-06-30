@@ -1,10 +1,10 @@
 field	value
-factor_scores_path	cl_st1_ph2_andrea/statistics/factor_scores.tsv
-metadata_path	cl_st1_ph2_andrea/statistics/statistical_matrix_metadata.tsv
-anova_results_output_path	cl_st1_ph2_andrea/statistics/anova_results.tsv
-group_means_output_path	cl_st1_ph2_andrea/statistics/group_mean_factor_scores.tsv
+factor_scores_path	1_test_projects/cl_st1_ph2_andrea_ori/statistics/factor_scores.tsv
+metadata_path	1_test_projects/cl_st1_ph2_andrea_ori/statistics/statistical_matrix_metadata.tsv
+anova_results_output_path	1_test_projects/cl_st1_ph2_andrea_ori/statistics/anova_results.tsv
+group_means_output_path	1_test_projects/cl_st1_ph2_andrea_ori/statistics/group_mean_factor_scores.tsv
 group_variable	subcorpus
 text_count	822
 group_count	8
-factor_count	4
+factor_count	5
 development_backend_source	true
