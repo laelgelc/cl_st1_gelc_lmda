@@ -1,11 +1,13 @@
-/* compute_correlation_matrix.sas */
+/* compute_polychoric_correlation.sas */
 
 options validvarname=v7;
 
-%let project_root = /home/YOUR_USERNAME/cl_st1_ph2_andrea_sas_stats;
-
-%let input_file  = &project_root/input/statistical_matrix.tsv;
-%let output_file = &project_root/output/correlation_matrix.tsv;
+%let project = cl_st1_ph2_andrea_sas_stats;
+%let myfolder = &project;
+%let sasusername = u63529080;
+%let whereisit = /home/&sasusername;   /* online */
+%let input_file  = &whereisit/&myfolder/statistical_matrix.tsv;
+%let output_file = &whereisit/&myfolder/correlation_matrix.tsv;
 
 /* -----------------------------------------------------------------------
    Read statistical matrix
@@ -53,7 +55,7 @@ run;
    For binary 0/1 variables, Pearson equals phi correlation.
    ----------------------------------------------------------------------- */
 
-proc corr data=statistical_matrix outp=corr_out noprint;
+proc corr data=statistical_matrix outplc=polychor_out polychoric noprint;
   var &varlist;
 run;
 
@@ -63,7 +65,8 @@ run;
 
 data app_corr;
   length variable $32;
-  set corr_out;
+  set polychor_out;
+  /*set corr_out;*/
   where _TYPE_ = "CORR";
   variable = _NAME_;
   drop _TYPE_ _NAME_;
