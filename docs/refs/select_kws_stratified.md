@@ -322,29 +322,79 @@ Because `keylemmas.py` sorts `POSKW` rows by descending log-likelihood, this mea
 
 ### 5.3 Lexical Filtering Rules
 
-After selecting `POSKW` rows, the programme must apply additional lexical filters.
+After selecting `POSKW` rows, the programme must apply lexical filters aligned
+with the upstream key-lemma extraction stage.
 
-A lemma must be excluded if:
+A lemma must be retained only if it:
 
-1. it contains Unicode punctuation;
-2. it contains any digit;
-3. it contains any uppercase letter.
+1. contains at least two alphabetic characters;
+2. consists only of alphabetic characters, optionally joined by internal hyphens;
+3. contains no digits;
+4. contains no uppercase letters.
 
-### 5.4 Unicode Punctuation Filter
+Valid hyphens are allowed only between alphabetic parts.
 
-A lemma contains punctuation if any character has a Unicode category beginning with:
+Examples retained:
 
 ```text
-P
+black-and-white
+close-up
+built-in
+mid-century
+café
+prêt-à-porter
 ```
 
 Examples excluded:
 
 ```text
-black-and-white
-close-up
 tvdays.com
 display**
+build-in.
+built-
+-built
+1950s-style
+Kodak
+RCA
+```
+
+### 5.4 Lemma Shape Filter
+
+The programme must use the same Unicode-aware lemma-shape rule as the upstream
+key-lemma programme.
+
+A clean lemma consists of one or more alphabetic parts joined by internal
+hyphens:
+
+```text
+alphabetic-part(-alphabetic-part)*
+```
+
+The implementation must use Unicode-aware alphabetic checks so that accented
+alphabetic lemmas are supported.
+
+The hyphen is permitted only as an internal separator between alphabetic parts.
+No other punctuation is permitted.
+
+Examples retained:
+
+```text
+black-and-white
+close-up
+built-in
+café
+prêt-à-porter
+```
+
+Examples excluded:
+
+```text
+tvdays.com
+display**
+build-in.
+built-
+-built
+1950s-style
 ```
 
 ### 5.5 Digit Filter
