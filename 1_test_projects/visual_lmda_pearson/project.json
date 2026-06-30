@@ -2,7 +2,7 @@
   "name": "Visual LMDA - Pearson Correlation",
   "directory": "1_test_projects/visual_lmda_pearson",
   "created_at": "2026-06-23T07:41:57",
-  "updated_at": "2026-06-30T12:53:08",
+  "updated_at": "2026-06-30T13:41:20",
   "corpus_directory": "/home/eyamrog/PycharmProjects/cl_st1_andrea/cl_st1_ph3_andrea/corpus/commercial_visual",
   "settings": {
     "corpus_validation": {
