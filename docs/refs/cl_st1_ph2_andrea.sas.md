@@ -94,11 +94,11 @@ t000001 1950 0 1 0 0 ...
 
 ### 3.3 Required Counts Columns
 
-| Column | Description |
-|---|---|
-| `filename` | Text identifier, e.g. `t000001` |
-| `decade` | Decade group, e.g. `1950` |
-| `v000001` to `v000265` | Binary keyword variables |
+| Column                 | Description                     |
+|------------------------|---------------------------------|
+| `filename`             | Text identifier, e.g. `t000001` |
+| `decade`               | Decade group, e.g. `1950`       |
+| `v000001` to `v000265` | Binary keyword variables        |
 
 The final keyword variable is controlled by:
 
@@ -129,19 +129,19 @@ They are included during loadings-table generation.
 
 The programme requires the following macro variables to be configured before execution:
 
-| Macro variable | Default / Example | Description |
-|---|---:|---|
-| `project` | `cl_st1_ph2_andrea` | Project dataset and output prefix |
-| `myfolder` | `&project` | Project folder name |
-| `sasusername` | `u63529080` | SAS account username |
-| `whereisit` | `/home/&sasusername` | Base directory |
-| `lastkeywordvar` | `v000265` | Last keyword variable in `counts.txt` |
-| `extractfactors` | `8` | Number of factors to extract |
-| `factorvars` | `fac1-fac&extractfactors` | Factor-score variable range |
-| `minloading` | `.3` | Minimum loading cutoff |
-| `communalcutoff` | `.15` | Minimum communality cutoff |
-| `extractclusters` | `2` | Cluster count parameter retained for project consistency |
-| `primaryfixedvar` | `decade` | Primary grouping variable |
+| Macro variable    |         Default / Example | Description                                              |
+|-------------------|--------------------------:|----------------------------------------------------------|
+| `project`         |       `cl_st1_ph2_andrea` | Project dataset and output prefix                        |
+| `myfolder`        |                `&project` | Project folder name                                      |
+| `sasusername`     |               `u63529080` | SAS account username                                     |
+| `whereisit`       |      `/home/&sasusername` | Base directory                                           |
+| `lastkeywordvar`  |                 `v000265` | Last keyword variable in `counts.txt`                    |
+| `extractfactors`  |                       `8` | Number of factors to extract                             |
+| `factorvars`      | `fac1-fac&extractfactors` | Factor-score variable range                              |
+| `minloading`      |                      `.3` | Minimum loading cutoff                                   |
+| `communalcutoff`  |                     `.15` | Minimum communality cutoff                               |
+| `extractclusters` |                       `2` | Cluster count parameter retained for project consistency |
+| `primaryfixedvar` |                  `decade` | Primary grouping variable                                |
 
 ---
 
