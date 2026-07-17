@@ -220,6 +220,7 @@ __marimo__/
 # cl_st1_gelc_lmda
 !env
 .Rproj.user
+!*.spec
 /build/
 /dist/
 packaging/pyinstaller/build/
