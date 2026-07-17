@@ -11,6 +11,7 @@ dependencies:
 
   # NLP
   - spacy
+  - click
   - spacy-model-en_core_web_sm
 
   # Data and statistics
