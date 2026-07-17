@@ -11,35 +11,15 @@ dependencies:
 
   # NLP
   - spacy
-  - click
   - spacy-model-en_core_web_sm
 
-  # Data
+  # Data and statistics
   - numpy
   - pandas
-  - pyarrow
-  - openpyxl
-
-  # Statistics
   - scipy
-  - scikit-learn
-  - statsmodels
 
   # Plotting
   - matplotlib
-  - seaborn
-
-  # Runtime utilities
-  - tqdm
-  - natsort
-  - python-dotenv
-  - platformdirs
-  - requests
-  - validators
 
   # Packaging
   - pyinstaller
-
-  # Pip packages
-  - pip:
-      - factor-analyzer

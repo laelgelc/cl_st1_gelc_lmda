@@ -2,15 +2,19 @@
 name = "lmda-app"
 version = "0.1.0"
 description = "Desktop application for Lexical Multidimensional Analysis"
+readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "PySide6",
     "spacy",
-    "click",
     "numpy",
     "pandas",
+    "scipy",
     "matplotlib",
 ]
+
+[project.gui-scripts]
+lmda-app = "lmda_app.main:main"
 
 [project.optional-dependencies]
 dev = [
