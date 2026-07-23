@@ -12,7 +12,37 @@ Only the build for Windows x86_64 is currently available.
 
 ## Extract the archive to a working directory
 
-Right click on the archive file and select "Extract".
+Before extracting the archive, unblock it in Windows:
+
+1. Right click on the downloaded `lmda-app-windows-x86_64.zip` file
+2. Select `Properties`
+3. If Windows shows a security message at the bottom of the window such as `This file came from another computer and might be blocked to help protect this computer`, check `Unblock`
+4. Click on `Apply`
+5. Click on `OK`
+
+Then extract the archive:
+
+1. Right click on the archive file.
+2. Select `Extract All...`.
+3. Extract it to a working directory, for example:
+
+```text
+C:\LMDA\
+```
+
+After extraction, the application folder should look similar to this:
+
+```text
+C:\LMDA\
+└── lmda-app-windows-x86_64\
+    └── lmda-app\
+        ├── lmda-app.exe
+        └── _internal\
+```
+
+Do not move `lmda-app.exe` out of the `lmda-app` folder. The executable depends on the files in the `_internal` directory.
+
+If the programme fails with a message saying that an application control policy blocked a file, delete the extracted `lmda-app` folder, unblock the ZIP file as described above, and extract it again.
 
 ## Prepare the target corpus
 
@@ -41,12 +71,14 @@ Each subdirectory should contain plain text files belonging to that subcorpus. F
 
 Double click on the `lmda-app.exe` file to start the programme.
 
+> **First launch notice:** The first time the programme is opened, Windows may take several minutes to inspect the application files. This is expected for the downloaded Windows prototype build. Please wait for the application window to open. Later launches are usually much faster.
+
 ## Project Setup
 
-- Click on File > New Project
+- Click on `File > New Project`
 - Assign a name to the project, for example `Verbal LMDA`
 - Assign a directory name, for example `verbal_lmda`
-- Click on OK
+- Click on `OK`
 
 Note: the project directory is created under the `lmda-app` directory
 
@@ -138,8 +170,8 @@ The `Export` functionality has not been implemented yet.
 
 ## Closing the Project and Exiting the Programme
 
-- Click on File > Close Project
-- Click on File > Exit
+- Click on `File > Close Project`
+- Click on `File > Exit`
 
 ## Reopening a Project
 
