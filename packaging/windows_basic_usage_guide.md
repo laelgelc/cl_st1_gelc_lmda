@@ -48,6 +48,8 @@ Double click on the `lmda-app.exe` file to start the programme.
 - Assign a directory name, for example `verbal_lmda`
 - Click on OK
 
+Note: the project directory is created under the `lmda-app` directory
+
 ## Corpus Import
 
 - Click on the `Corpus Import` tab
@@ -133,6 +135,17 @@ Double click on the `lmda-app.exe` file to start the programme.
 ## Export
 
 The `Export` functionality has not been implemented yet.
+
+## Closing the Project and Exiting the Programme
+
+- Click on File > Close Project
+- Click on File > Exit
+
+## Reopening a Project
+
+- Click on File > Open Project
+- Go to the `lmda-app` directory and double click on the project directory
+- Select the `project.json` file and click on Open
 
 ## A few remarks
 
