@@ -6,6 +6,8 @@ Feedback is welcome. Please report any issues or suggestions to [laelgelc@outloo
 
 ## Download the LMDA Tool archive
 
+Only the build for Windows x86_64 is currently available.
+
 [lmda-app-windows-x86_64.zip](https://lmda-app.s3.sa-east-1.amazonaws.com/windows-x86_64/lmda-app-windows-x86_64.zip)
 
 ## Extract the archive to a working directory
