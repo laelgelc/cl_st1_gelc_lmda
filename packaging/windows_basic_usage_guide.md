@@ -130,7 +130,7 @@ Note: the project directory is created under the `lmda-app` directory
 ## Results
 
 - Click on the `Results` tab
-- Review the results per tab
+- Review the results on the tabs
 
 ## Export
 
