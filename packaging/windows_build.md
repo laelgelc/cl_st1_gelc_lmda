@@ -124,20 +124,20 @@ python -m lmda_app
 
 Use the same narrowed PySide6 strategy:
 
-```powershell
-pyinstaller `
-  --name lmda-app `
-  --windowed `
-  --clean `
-  --noconfirm `
-  --paths src `
-  --collect-all spacy `
-  --collect-all en_core_web_sm `
-  --hidden-import en_core_web_sm `
-  --exclude-module PySide6.QtWebEngineCore `
-  --exclude-module PySide6.QtWebEngineWidgets `
-  --exclude-module PySide6.QtWebEngineQuick `
-  --exclude-module PySide6.QtWebChannel `
+```bat
+pyinstaller ^
+  --name lmda-app ^
+  --windowed ^
+  --clean ^
+  --noconfirm ^
+  --paths src ^
+  --collect-all spacy ^
+  --collect-all en_core_web_sm ^
+  --hidden-import en_core_web_sm ^
+  --exclude-module PySide6.QtWebEngineCore ^
+  --exclude-module PySide6.QtWebEngineWidgets ^
+  --exclude-module PySide6.QtWebEngineQuick ^
+  --exclude-module PySide6.QtWebChannel ^
   src\lmda_app\main.py
 ```
 
@@ -151,9 +151,9 @@ dist\lmda-app\
 
 ## 6. Test the Windows build
 
-From PowerShell:
+From Anaconda Prompt:
 
-```powershell
+```bat
 .\dist\lmda-app\lmda-app.exe
 ```
 
@@ -166,11 +166,13 @@ Run your smoke test:
 
 ## 7. Package the Windows build
 
-As with Linux, do **not** copy only the `.exe`. Copy or zip the whole folder:
+As with Linux, do **not** copy only the `.exe`. Copy or zip the whole folder. In Anaconda Prompt, if PowerShell is available, you can call it explicitly:
 
-```powershell
-Compress-Archive -Path .\dist\lmda-app -DestinationPath .\dist\lmda-app-windows-x64.zip -Force
+```bat
+powershell -Command "Compress-Archive -Path .\dist\lmda-app -DestinationPath .\dist\lmda-app-windows-x64.zip -Force"
 ```
+
+Or you can right-click the `dist\lmda-app` folder in File Explorer and choose **Send to → Compressed zipped folder**.
 
 Distribute:
 
