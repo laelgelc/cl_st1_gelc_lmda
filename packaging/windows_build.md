@@ -169,7 +169,7 @@ Run your smoke test:
 As with Linux, do **not** copy only the `.exe`. Copy or zip the whole folder. In Anaconda Prompt, if PowerShell is available, you can call it explicitly:
 
 ```bat
-powershell -Command "Compress-Archive -Path .\dist\lmda-app -DestinationPath .\dist\lmda-app-windows-x64.zip -Force"
+powershell -Command "Compress-Archive -Path .\dist\lmda-app -DestinationPath .\dist\lmda-app-windows-x86_64.zip -Force"
 ```
 
 Or you can right-click the `dist\lmda-app` folder in File Explorer and choose **Send to → Compressed zipped folder**.
