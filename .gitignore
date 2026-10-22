@@ -218,6 +218,7 @@ __marimo__/
 .streamlit/secrets.toml
 
 # cl_st1_gelc_lmda
+.idea/
 !env
 .Rproj.user
 !*.spec
